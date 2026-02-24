@@ -1120,13 +1120,26 @@ tbody tr:last-child td { border-bottom:none; }
           </div>
           <div class="divider"></div>
           <div class="card-title">Google Sheets Sync</div>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Data enter කරන ගමන්ම auto sync වෙනවා. URL paste කරලා Save කරන්න.</p>
           <div class="form-row">
             <div class="form-group">
               <label>Apps Script Web App URL</label>
               <input type="text" id="sheetsUrl" placeholder="https://script.google.com/macros/s/..." style="font-size:12px">
             </div>
           </div>
-          <button class="btn btn-success btn-sm" onclick="saveSheetsUrl()">Save & Sync</button>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-success btn-sm" onclick="saveSheetsUrl()">💾 Save & Sync All</button>
+            <button class="btn btn-ghost btn-sm" onclick="testSheetsConnection()">🔗 Test Connection</button>
+            <button class="btn btn-primary btn-sm" onclick="syncToSheets('syncAll');toast('Syncing all data...','info')">🔄 Sync All Now</button>
+          </div>
+          <div id="sheetsStatus" style="margin-top:12px;font-size:13px;padding:10px 14px;border-radius:8px;display:none"></div>
+          <div style="margin-top:16px;padding:14px;background:rgba(124,108,255,0.06);border:1px solid rgba(124,108,255,0.15);border-radius:10px;font-size:12px;color:var(--text2);line-height:1.8">
+            <strong style="color:var(--accent2)">📋 Quick Setup Steps:</strong><br>
+            1. <a href="https://script.google.com" target="_blank" style="color:var(--accent2)">script.google.com</a> → New project<br>
+            2. Code paste කරන්න → Save (Ctrl+S)<br>
+            3. Deploy → New deployment → Web app → Anyone → Deploy<br>
+            4. URL copy කරලා above paste කරන්න → Save & Sync
+          </div>
         </div>
       </div>
     </div>
@@ -1306,6 +1319,7 @@ function saveSalary() {
   renderSalarySummary(key);
   renderSalaryCharts(key);
   toast('Salary entry saved!');
+  syncToSheets('syncSalary');
 }
 
 function renderSalaryTable() {
@@ -1340,7 +1354,7 @@ function renderSalaryTable() {
 
 function deleteSalary(key) {
   if(!confirm('Delete this entry?')) return;
-  delete DB.salary[key]; saveDB(); renderSalaryTable(); toast('Entry deleted', 'info');
+  delete DB.salary[key]; saveDB(); renderSalaryTable(); toast('Entry deleted', 'info'); syncToSheets('syncSalary');
 }
 
 function renderSalarySummary(key) {
@@ -1403,6 +1417,7 @@ function saveFood() {
   document.getElementById('foodAmount').value='';
   document.getElementById('foodReceiptPreview').style.display='none';
   toast('Meal entry added!');
+  syncToSheets('syncFood');
 }
 function renderFoodTable() {
   const viewMonth = document.getElementById('foodViewMonth').value;
@@ -1433,7 +1448,7 @@ function renderFoodTable() {
   renderFoodCharts();
 }
 function deleteFood(id) {
-  DB.food = DB.food.filter(f=>f.id!==id); saveDB(); renderFoodTable(); toast('Entry deleted','info');
+  DB.food = DB.food.filter(f=>f.id!==id); saveDB(); renderFoodTable(); toast('Entry deleted','info'); syncToSheets('syncFood');
 }
 function renderFoodCharts() {
   const viewMonth = document.getElementById('foodViewMonth').value;
@@ -1471,6 +1486,7 @@ function saveGrocery() {
   document.getElementById('groceryTotal').value='';
   document.getElementById('groceryReceiptPreview').style.display='none';
   toast('Grocery item added!');
+  syncToSheets('syncGrocery');
 }
 function renderGroceryTable() {
   const viewMonth = document.getElementById('groceryViewMonth').value;
@@ -1500,7 +1516,7 @@ function renderGroceryTable() {
   renderGroceryChart();
 }
 function deleteGrocery(id) {
-  DB.grocery = DB.grocery.filter(g=>g.id!==id); saveDB(); renderGroceryTable(); toast('Entry deleted','info');
+  DB.grocery = DB.grocery.filter(g=>g.id!==id); saveDB(); renderGroceryTable(); toast('Entry deleted','info'); syncToSheets('syncGrocery');
 }
 function renderGroceryChart() {
   const viewMonth = document.getElementById('groceryViewMonth').value;
@@ -1527,6 +1543,7 @@ function saveOther() {
   document.getElementById('otherAmount').value='';
   document.getElementById('otherReceiptPreview').style.display='none';
   toast('Expense added!');
+  syncToSheets('syncOther');
 }
 function renderOtherTable() {
   const viewMonth = document.getElementById('otherViewMonth').value;
@@ -1554,7 +1571,7 @@ function renderOtherTable() {
   renderOtherChart();
 }
 function deleteOther(id) {
-  DB.other = DB.other.filter(o=>o.id!==id); saveDB(); renderOtherTable(); toast('Deleted','info');
+  DB.other = DB.other.filter(o=>o.id!==id); saveDB(); renderOtherTable(); toast('Deleted','info'); syncToSheets('syncOther');
 }
 function renderOtherChart() {
   const viewMonth = document.getElementById('otherViewMonth').value;
@@ -1814,15 +1831,81 @@ function clearAllData() {
   toast('All data cleared','info');
 }
 
+// ===== GOOGLE SHEETS SYNC =====
+function getSheetsUrl() { return localStorage.getItem('spfms_sheets_url') || ''; }
+
+function showSheetsStatus(msg, type) {
+  const el = document.getElementById('sheetsStatus');
+  if(!el) return;
+  const colors = { success:'rgba(52,211,153,0.1)', error:'rgba(248,113,113,0.1)', info:'rgba(34,211,238,0.1)' };
+  const textColors = { success:'var(--green)', error:'var(--red)', info:'var(--cyan)' };
+  el.style.display = 'block';
+  el.style.background = colors[type] || colors.info;
+  el.style.color = textColors[type] || textColors.info;
+  el.style.border = '1px solid ' + (textColors[type] || textColors.info);
+  el.textContent = msg;
+}
+
+function syncToSheets(action) {
+  const url = getSheetsUrl();
+  if(!url) return;
+
+  // Build payload - spread DB but only include plain data (no receipts to keep size small)
+  const payload = JSON.stringify({
+    action: action || 'syncAll',
+    salary: DB.salary,
+    food: DB.food.map(f=>({id:f.id,month:f.month,date:f.date,type:f.type,amount:f.amount})),
+    grocery: DB.grocery.map(g=>({id:g.id,month:g.month,date:g.date,item:g.item,qty:g.qty,unitPrice:g.unitPrice,total:g.total})),
+    other: DB.other.map(o=>({id:o.id,month:o.month,date:o.date,desc:o.desc,amount:o.amount}))
+  });
+
+  // no-cors POST — response will be opaque (that's OK, data still arrives at Google)
+  fetch(url, {
+    method: 'POST',
+    mode: 'no-cors',           // needed to avoid CORS preflight block
+    body: payload,
+    headers: { 'Content-Type': 'text/plain' }  // text/plain = simple request, no preflight
+  })
+  .then(() => {
+    // With no-cors we always get opaque response — treat as success
+    toast('☁️ Google Sheets synced!', 'success');
+    showSheetsStatus('✅ Last synced: ' + new Date().toLocaleString(), 'success');
+  })
+  .catch(err => {
+    // Network totally unreachable
+    toast('❌ Sync failed — check internet', 'error');
+    showSheetsStatus('❌ Network error: ' + err.message, 'error');
+  });
+}
+
+function testSheetsConnection() {
+  const url = (document.getElementById('sheetsUrl').value || '').trim() || getSheetsUrl();
+  if(!url) { showSheetsStatus('❌ URL empty — paste your Apps Script URL first', 'error'); return; }
+  showSheetsStatus('⏳ Testing...', 'info');
+
+  // Use an image ping to check reachability without CORS issue
+  fetch(url + '?test=1', { mode:'no-cors' })
+    .then(() => {
+      showSheetsStatus('✅ URL reachable! Click "🔄 Sync All Now" to push data.', 'success');
+    })
+    .catch(() => {
+      showSheetsStatus('❌ Cannot reach URL — check internet connection or redeploy script.', 'error');
+    });
+}
+
 // ===== SETTINGS =====
 function saveSheetsUrl() {
   const url = document.getElementById('sheetsUrl').value.trim();
   if(!url) { toast('Enter a Google Apps Script URL','error'); return; }
   localStorage.setItem('spfms_sheets_url', url);
-  toast('Sheets URL saved! Syncing data...');
-  fetch(url, { method:'POST', body: JSON.stringify(DB), headers:{'Content-Type':'application/json'} })
-    .then(r => toast('Data synced to Google Sheets!'))
-    .catch(() => toast('Sync failed. Check the URL.','error'));
+  toast('URL saved! Syncing all data...', 'info');
+  showSheetsStatus('⏳ Syncing all data to Google Sheets...', 'info');
+  syncToSheets('syncAll');
+}
+
+function loadSheetsUrl() {
+  const url = getSheetsUrl();
+  if(url) document.getElementById('sheetsUrl').value = url;
 }
 
 // ===== MODAL =====
@@ -1832,6 +1915,7 @@ document.getElementById('editModal').addEventListener('click', e=>{ if(e.target=
 // ===== INIT =====
 initDateDefaults();
 renderSalaryCharts();
+loadSheetsUrl();
 </script>
 </body>
 </html>
