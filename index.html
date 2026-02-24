@@ -1,0 +1,1837 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPFMS — Smart Personal Finance</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --bg2: #111118;
+  --bg3: #1a1a26;
+  --surface: rgba(255,255,255,0.04);
+  --surface2: rgba(255,255,255,0.07);
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0f0f8;
+  --text2: #9090b0;
+  --text3: #5a5a7a;
+  --accent: #7c6cff;
+  --accent2: #a594ff;
+  --accent3: #c8bfff;
+  --green: #34d399;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --orange: #fb923c;
+  --glow: rgba(124, 108, 255, 0.2);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --font: 'DM Sans', sans-serif;
+  --font-display: 'Syne', sans-serif;
+  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  --shadow-lg: 0 24px 64px rgba(0,0,0,0.6);
+}
+[data-theme="light"] {
+  --bg: #f0f0f8;
+  --bg2: #e8e8f5;
+  --bg3: #ffffff;
+  --surface: rgba(0,0,0,0.03);
+  --surface2: rgba(0,0,0,0.06);
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.14);
+  --text: #1a1a2e;
+  --text2: #4a4a6a;
+  --text3: #9090b0;
+  --glow: rgba(124,108,255,0.12);
+  --shadow: 0 8px 32px rgba(0,0,0,0.1);
+  --shadow-lg: 0 24px 64px rgba(0,0,0,0.15);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background 0.4s, color 0.4s;
+}
+
+/* Background grid */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(124,108,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124,108,255,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* Ambient orbs */
+.orb {
+  position:fixed;
+  border-radius:50%;
+  filter:blur(80px);
+  opacity:0.15;
+  pointer-events:none;
+  z-index:0;
+  animation: orb-drift 20s ease-in-out infinite alternate;
+}
+.orb1{width:600px;height:600px;background:var(--accent);top:-200px;left:-200px;}
+.orb2{width:400px;height:400px;background:var(--cyan);bottom:-100px;right:-100px;animation-delay:-10s;}
+.orb3{width:300px;height:300px;background:var(--pink);top:50%;right:20%;animation-delay:-5s;}
+@keyframes orb-drift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(30px,20px) scale(1.05)}}
+
+/* LOGIN */
+#loginScreen {
+  position:fixed;inset:0;z-index:9999;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+  animation: fadeIn 0.5s ease;
+}
+.login-card {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 24px;
+  padding: 56px 48px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(124,108,255,0.1);
+  position:relative;
+  overflow:hidden;
+}
+.login-card::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background: linear-gradient(90deg, var(--accent), var(--cyan), var(--pink));
+}
+.login-logo {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent2), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+.login-sub { color: var(--text2); font-size: 14px; margin-bottom: 40px; }
+.login-card label { display:block; font-size:12px; font-weight:500; color:var(--text2); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px; }
+.login-card input[type="password"] {
+  width:100%;padding:14px 16px;
+  background:var(--surface2);
+  border:1px solid var(--border2);
+  border-radius:var(--radius-sm);
+  color:var(--text);font-family:var(--font);font-size:15px;
+  outline:none;transition:all 0.2s;
+}
+.login-card input[type="password"]:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); }
+.btn-login {
+  width:100%;margin-top:24px;padding:15px;
+  background:linear-gradient(135deg,var(--accent),var(--cyan));
+  border:none;border-radius:var(--radius-sm);
+  color:#fff;font-family:var(--font-display);font-weight:700;font-size:15px;
+  cursor:pointer;letter-spacing:0.05em;transition:all 0.2s;
+}
+.btn-login:hover { transform:translateY(-1px);box-shadow:0 8px 24px rgba(124,108,255,0.4); }
+.login-error { color:var(--red);font-size:13px;margin-top:12px;display:none; }
+
+/* TOPNAV */
+#app { display:none; flex-direction:column; min-height:100vh; position:relative; z-index:1; }
+
+.topnav {
+  position:sticky;top:0;z-index:100;
+  background:rgba(10,10,15,0.85);
+  backdrop-filter:blur(24px) saturate(180%);
+  border-bottom:1px solid var(--border);
+  padding: 0 32px;
+  display:flex;align-items:center;gap:0;
+  height: 64px;
+}
+[data-theme="light"] .topnav { background:rgba(240,240,248,0.85); }
+
+.nav-brand {
+  font-family:var(--font-display);
+  font-weight:800;font-size:18px;
+  background:linear-gradient(135deg,var(--accent2),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-right: 48px;
+  white-space:nowrap;
+}
+.nav-tabs { display:flex;align-items:center;gap:4px;flex:1;overflow-x:auto; }
+.nav-tab {
+  padding:8px 18px;border-radius:var(--radius-sm);
+  color:var(--text2);font-family:var(--font-display);font-weight:600;font-size:14px;
+  cursor:pointer;border:none;background:transparent;
+  transition:all 0.2s;white-space:nowrap;
+  display:flex;align-items:center;gap:8px;
+  letter-spacing:0.02em;
+}
+.nav-tab:hover { color:var(--text);background:var(--surface2); }
+.nav-tab.active {
+  color:var(--accent3);background:rgba(124,108,255,0.12);
+  box-shadow:inset 0 0 0 1px rgba(124,108,255,0.2);
+}
+.nav-tab svg { width:15px;height:15px;opacity:0.7; }
+.nav-actions { display:flex;align-items:center;gap:12px;margin-left:auto; }
+
+.theme-toggle {
+  width:40px;height:40px;border-radius:50%;border:1px solid var(--border2);
+  background:var(--surface2);color:var(--text2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.2s;font-size:16px;
+}
+.theme-toggle:hover { border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 3px var(--glow); }
+
+.logout-btn {
+  padding:8px 16px;border-radius:var(--radius-sm);
+  background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.2);
+  color:var(--red);font-size:13px;font-weight:600;cursor:pointer;
+  transition:all 0.2s;
+}
+.logout-btn:hover { background:rgba(248,113,113,0.2); }
+
+/* MAIN CONTENT */
+.main { padding:32px;max-width:1400px;margin:0 auto;width:100%; }
+
+/* MODULE HEADER */
+.module-header {
+  margin-bottom:32px;
+  animation: slideDown 0.4s ease;
+}
+.module-title {
+  font-family:var(--font-display);font-weight:800;font-size:36px;
+  line-height:1;margin-bottom:8px;
+}
+.module-title span { background:linear-gradient(135deg,var(--accent2),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent; }
+.module-sub { color:var(--text2);font-size:15px; }
+
+/* GLASS CARD */
+.card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:24px;
+  transition:all 0.3s;
+  backdrop-filter:blur(8px);
+}
+.card:hover { border-color:var(--border2); }
+.card-title {
+  font-family:var(--font-display);font-weight:700;font-size:14px;
+  text-transform:uppercase;letter-spacing:0.1em;
+  color:var(--text2);margin-bottom:20px;
+  display:flex;align-items:center;gap:8px;
+}
+.card-title::before { content:'';width:3px;height:14px;background:linear-gradient(var(--accent),var(--cyan));border-radius:2px; }
+
+/* GRID LAYOUTS */
+.grid-2 { display:grid;grid-template-columns:1fr 1fr;gap:24px; }
+.grid-3 { display:grid;grid-template-columns:repeat(3,1fr);gap:24px; }
+.grid-4 { display:grid;grid-template-columns:repeat(4,1fr);gap:16px; }
+
+/* FORM ELEMENTS */
+.form-row { display:grid;gap:16px;margin-bottom:16px; }
+.form-row.cols-2 { grid-template-columns:1fr 1fr; }
+.form-row.cols-3 { grid-template-columns:repeat(3,1fr); }
+.form-row.cols-4 { grid-template-columns:repeat(4,1fr); }
+.form-row.cols-6 { grid-template-columns:repeat(6,1fr); }
+
+.form-group { display:flex;flex-direction:column;gap:8px; }
+.form-group label { font-size:12px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em; }
+.form-group input, .form-group select {
+  padding:11px 14px;
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  border-radius:var(--radius-sm);
+  color:var(--text);font-family:var(--font);font-size:14px;
+  outline:none;transition:all 0.2s;
+  width:100%;
+}
+.form-group input:focus, .form-group select:focus {
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--glow);
+}
+.form-group select option { background:var(--bg2);color:var(--text); }
+
+/* BUTTONS */
+.btn {
+  padding:10px 20px;border-radius:var(--radius-sm);
+  font-family:var(--font-display);font-weight:700;font-size:13px;
+  cursor:pointer;border:none;letter-spacing:0.05em;
+  display:inline-flex;align-items:center;gap:8px;
+  transition:all 0.2s;
+}
+.btn-primary {
+  background:linear-gradient(135deg,var(--accent),#5b4de8);
+  color:#fff;box-shadow:0 4px 16px rgba(124,108,255,0.3);
+}
+.btn-primary:hover { transform:translateY(-1px);box-shadow:0 8px 24px rgba(124,108,255,0.4); }
+.btn-success { background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3); }
+.btn-success:hover { background:rgba(52,211,153,0.25); }
+.btn-warning { background:rgba(251,191,36,0.15);color:var(--yellow);border:1px solid rgba(251,191,36,0.3); }
+.btn-warning:hover { background:rgba(251,191,36,0.25); }
+.btn-danger { background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3); }
+.btn-danger:hover { background:rgba(248,113,113,0.25); }
+.btn-ghost { background:var(--surface2);color:var(--text2);border:1px solid var(--border2); }
+.btn-ghost:hover { color:var(--text);border-color:var(--border2); }
+.btn-sm { padding:7px 14px;font-size:12px; }
+
+.btn-group { display:flex;gap:10px;flex-wrap:wrap; }
+
+/* STAT CARDS */
+.stat-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px 24px;
+  position:relative;
+  overflow:hidden;
+  transition:all 0.3s;
+}
+.stat-card::after {
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:var(--stat-color, var(--accent));
+  opacity:0.6;
+}
+.stat-card:hover { transform:translateY(-2px);box-shadow:var(--shadow); }
+.stat-label { font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--text3);margin-bottom:8px; }
+.stat-value { font-family:var(--font-display);font-weight:800;font-size:28px;line-height:1; }
+.stat-sub { font-size:12px;color:var(--text2);margin-top:6px; }
+.stat-icon { position:absolute;right:20px;top:50%;transform:translateY(-50%);font-size:36px;opacity:0.08; }
+
+/* TABLE */
+.table-wrap { overflow-x:auto;border-radius:var(--radius-sm); }
+table { width:100%;border-collapse:collapse;font-size:13px; }
+thead th {
+  padding:12px 16px;
+  background:var(--surface2);
+  color:var(--text2);
+  font-family:var(--font-display);
+  font-weight:700;font-size:11px;
+  text-transform:uppercase;letter-spacing:0.1em;
+  text-align:left;border-bottom:1px solid var(--border2);
+  white-space:nowrap;
+}
+tbody td {
+  padding:11px 16px;
+  border-bottom:1px solid var(--border);
+  color:var(--text);
+  transition:background 0.15s;
+}
+tbody tr:hover td { background:var(--surface2); }
+tbody tr:last-child td { border-bottom:none; }
+.td-edit { cursor:pointer; }
+.td-edit:hover { color:var(--accent2); }
+.badge {
+  display:inline-flex;align-items:center;
+  padding:3px 10px;border-radius:100px;
+  font-size:11px;font-weight:600;
+}
+.badge-purple { background:rgba(124,108,255,0.15);color:var(--accent2); }
+.badge-green { background:rgba(52,211,153,0.15);color:var(--green); }
+.badge-red { background:rgba(248,113,113,0.15);color:var(--red); }
+.badge-yellow { background:rgba(251,191,36,0.15);color:var(--yellow); }
+.badge-cyan { background:rgba(34,211,238,0.15);color:var(--cyan); }
+.badge-pink { background:rgba(244,114,182,0.15);color:var(--pink); }
+
+/* PROGRESS BAR */
+.progress-bar-wrap { display:flex;align-items:center;gap:12px; }
+.progress-bar {
+  flex:1;height:6px;background:var(--surface2);border-radius:100px;overflow:hidden;
+}
+.progress-fill {
+  height:100%;border-radius:100px;
+  background:linear-gradient(90deg,var(--accent),var(--cyan));
+  transition:width 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+.progress-label { font-size:12px;font-weight:600;color:var(--text2);min-width:36px;text-align:right; }
+
+/* CHART CONTAINER */
+.chart-wrap { position:relative;width:100%; }
+.chart-wrap canvas { max-height:280px; }
+
+/* TABS */
+.tab-page { display:none;animation: fadeIn 0.3s ease; }
+.tab-page.active { display:block; }
+
+/* ANIMATIONS */
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slideDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* MODAL */
+.modal-overlay {
+  position:fixed;inset:0;z-index:999;
+  background:rgba(0,0,0,0.8);
+  backdrop-filter:blur(8px);
+  display:none;align-items:center;justify-content:center;
+  animation:fadeIn 0.2s ease;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:var(--bg3);
+  border:1px solid var(--border2);
+  border-radius:20px;
+  padding:32px;
+  width:480px;max-width:90vw;
+  box-shadow:var(--shadow-lg);
+  animation:slideDown 0.3s ease;
+}
+.modal-title { font-family:var(--font-display);font-weight:800;font-size:20px;margin-bottom:24px; }
+.modal-actions { display:flex;gap:12px;margin-top:24px;justify-content:flex-end; }
+
+/* RECEIPT */
+.receipt-preview {
+  width:100%;max-height:200px;
+  object-fit:contain;
+  border-radius:var(--radius-sm);
+  border:1px solid var(--border2);
+  margin-top:8px;
+}
+.upload-zone {
+  border:2px dashed var(--border2);
+  border-radius:var(--radius-sm);
+  padding:24px;text-align:center;
+  cursor:pointer;color:var(--text3);font-size:13px;
+  transition:all 0.2s;
+}
+.upload-zone:hover { border-color:var(--accent);color:var(--accent); }
+
+/* SUMMARY HIGHLIGHT BOX */
+.summary-box {
+  background:linear-gradient(135deg,rgba(124,108,255,0.08),rgba(34,211,238,0.05));
+  border:1px solid rgba(124,108,255,0.2);
+  border-radius:var(--radius);
+  padding:24px;
+  position:relative;overflow:hidden;
+}
+.summary-box::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),var(--cyan),var(--pink));
+}
+
+/* MONTH TAG */
+.month-tag {
+  display:inline-block;padding:4px 12px;
+  background:rgba(124,108,255,0.12);
+  border:1px solid rgba(124,108,255,0.2);
+  border-radius:100px;
+  font-size:12px;font-weight:600;color:var(--accent2);
+}
+
+/* EMPTY STATE */
+.empty-state {
+  text-align:center;padding:60px 20px;color:var(--text3);
+}
+.empty-state svg { width:48px;height:48px;margin:0 auto 16px;display:block;opacity:0.3; }
+.empty-state p { font-size:14px; }
+
+/* NUMBER FORMATTING */
+.amount { font-family:var(--font-display);font-weight:700; }
+.amount-positive { color:var(--green); }
+.amount-negative { color:var(--red); }
+.amount-neutral { color:var(--accent2); }
+
+/* DIVIDER */
+.divider { height:1px;background:var(--border);margin:24px 0; }
+
+/* NOTIFICATION TOAST */
+.toast {
+  position:fixed;bottom:24px;right:24px;z-index:9000;
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--radius-sm);
+  padding:14px 20px;
+  display:flex;align-items:center;gap:12px;
+  box-shadow:var(--shadow-lg);
+  transform:translateY(80px);opacity:0;
+  transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+  font-size:14px;max-width:320px;
+}
+.toast.show { transform:translateY(0);opacity:1; }
+.toast-icon { width:20px;height:20px;flex-shrink:0; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width:6px;height:6px; }
+::-webkit-scrollbar-track { background:var(--bg2); }
+::-webkit-scrollbar-thumb { background:var(--border2);border-radius:100px; }
+::-webkit-scrollbar-thumb:hover { background:var(--accent); }
+
+/* DELETE BTN IN TABLE */
+.del-btn {
+  width:28px;height:28px;border-radius:50%;
+  background:rgba(248,113,113,0.1);border:none;
+  color:var(--red);cursor:pointer;font-size:14px;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:all 0.2s;
+}
+.del-btn:hover { background:rgba(248,113,113,0.25);transform:scale(1.1); }
+
+/* Annual performance chart area */
+.annual-charts { display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px; }
+
+/* RESPONSIVE */
+@media(max-width:768px) {
+  .topnav { padding:0 16px; }
+  .main { padding:16px; }
+  .grid-2,.grid-3,.grid-4 { grid-template-columns:1fr; }
+  .form-row.cols-2,.form-row.cols-3,.form-row.cols-4,.form-row.cols-6 { grid-template-columns:1fr; }
+  .annual-charts { grid-template-columns:1fr; }
+  .nav-brand { font-size:15px;margin-right:16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- AMBIENT ORBS -->
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon">✓</span>
+  <span id="toastMsg">Action completed</span>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">SPFMS</div>
+    <div class="login-sub">Smart Personal Financial Management System</div>
+    <label>Password</label>
+    <input type="password" id="loginPwd" placeholder="Enter your password" autocomplete="current-password">
+    <div class="login-error" id="loginError">Incorrect password. Try again.</div>
+    <button class="btn-login" onclick="doLogin()">Unlock Dashboard →</button>
+    <div style="margin-top:16px;font-size:12px;color:var(--text3);text-align:center">Default password: <code style="color:var(--accent2)">1234</code></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- TOPNAV -->
+  <nav class="topnav">
+    <div class="nav-brand">SPFMS</div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchTab('salary')" id="tab-salary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Salary
+      </button>
+      <button class="nav-tab" onclick="switchTab('food')" id="tab-food">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
+        Food
+      </button>
+      <button class="nav-tab" onclick="switchTab('grocery')" id="tab-grocery">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>
+        Grocery
+      </button>
+      <button class="nav-tab" onclick="switchTab('other')" id="tab-other">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><path d="M14.18 9.82L16.77 7.23M7.23 16.77L9.82 14.18"/></svg>
+        Other
+      </button>
+      <button class="nav-tab" onclick="switchTab('annual')" id="tab-annual">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Annual
+      </button>
+      <button class="nav-tab" onclick="switchTab('settings')" id="tab-settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Settings
+      </button>
+    </div>
+    <div class="nav-actions">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+      <button class="logout-btn" onclick="doLogout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="main">
+
+    <!-- ====== SALARY TAB ====== -->
+    <div class="tab-page active" id="page-salary">
+      <div class="module-header">
+        <div class="module-title">Salary <span>Tracker</span></div>
+        <div class="module-sub">Manage your monthly income and expense breakdown</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:400px 1fr;gap:24px;align-items:start">
+        <!-- Input Form -->
+        <div class="card">
+          <div class="card-title">Add / Update Entry</div>
+          <div class="form-row cols-2">
+            <div class="form-group">
+              <label>Month</label>
+              <select id="salaryMonth">
+                <option>January</option><option>February</option><option>March</option>
+                <option>April</option><option>May</option><option>June</option>
+                <option>July</option><option>August</option><option>September</option>
+                <option>October</option><option>November</option><option>December</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Year</label>
+              <input type="number" id="salaryYear" value="2026" min="2020" max="2099">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Monthly Salary (Rs.)</label>
+              <input type="number" id="salarySalary" placeholder="0.00" min="0">
+            </div>
+          </div>
+          <div class="form-row cols-2">
+            <div class="form-group">
+              <label>Food (Rs.)</label>
+              <input type="number" id="salaryFood" placeholder="0" min="0">
+            </div>
+            <div class="form-group">
+              <label>Transport (Rs.)</label>
+              <input type="number" id="salaryTransport" placeholder="0" min="0">
+            </div>
+            <div class="form-group">
+              <label>Grocery (Rs.)</label>
+              <input type="number" id="salaryGrocery" placeholder="0" min="0">
+            </div>
+            <div class="form-group">
+              <label>Bank Saving (Rs.)</label>
+              <input type="number" id="salaryBank" placeholder="0" min="0">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Other Expenses (Rs.)</label>
+              <input type="number" id="salaryOther" placeholder="0" min="0" id="salaryOtherInput">
+            </div>
+          </div>
+          <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="saveSalary()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Save Entry (Enter)
+          </button>
+        </div>
+
+        <!-- Summary -->
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <div class="summary-box" id="salarySummary">
+            <div style="font-family:var(--font-display);font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text2);margin-bottom:16px">Monthly Summary</div>
+            <div class="grid-3" style="gap:16px" id="summaryCards">
+              <div>
+                <div class="stat-label">Total Salary</div>
+                <div class="stat-value amount-neutral" id="sumSalary">Rs. 0</div>
+              </div>
+              <div>
+                <div class="stat-label">Total Expenses</div>
+                <div class="stat-value amount-negative" id="sumExpense">Rs. 0</div>
+              </div>
+              <div>
+                <div class="stat-label">Balance</div>
+                <div class="stat-value amount-positive" id="sumBalance">Rs. 0</div>
+              </div>
+            </div>
+            <div style="margin-top:20px" id="salaryProgressBars"></div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-success btn-sm" onclick="exportSalaryPDF()">📄 Export PDF</button>
+            <button class="btn btn-warning btn-sm" onclick="exportSalaryExcel()">📊 Export Excel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid-2" style="margin-top:24px">
+        <div class="card">
+          <div class="card-title">Expense Breakdown — Bar Chart</div>
+          <div class="chart-wrap"><canvas id="salaryBarChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Expense Distribution — Pie Chart</div>
+          <div class="chart-wrap"><canvas id="salaryPieChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Data Table -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-title">All Salary Records</div>
+        <div class="table-wrap">
+          <table id="salaryTable">
+            <thead>
+              <tr>
+                <th>Month</th><th>Salary</th><th>Food</th><th>Transport</th>
+                <th>Grocery</th><th>Bank</th><th>Other</th><th>Balance</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="salaryTableBody">
+              <tr><td colspan="9"><div class="empty-state"><p>No records yet. Add your first entry above.</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== FOOD TAB ====== -->
+    <div class="tab-page" id="page-food">
+      <div class="module-header">
+        <div class="module-title">Food <span>Expenses</span></div>
+        <div class="module-sub">Track daily meal costs and monthly totals</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start">
+        <div class="card">
+          <div class="card-title">Add Meal Entry</div>
+          <div class="form-row cols-2">
+            <div class="form-group">
+              <label>Month</label>
+              <select id="foodMonth">
+                <option>January</option><option>February</option><option>March</option>
+                <option>April</option><option>May</option><option>June</option>
+                <option>July</option><option>August</option><option>September</option>
+                <option>October</option><option>November</option><option>December</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="foodDate">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Meal Type</label>
+              <select id="foodType">
+                <option>Morning</option><option>Afternoon</option>
+                <option>Night</option><option>Not Taken</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Amount (Rs.)</label>
+              <input type="number" id="foodAmount" placeholder="0.00" min="0">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Receipt (optional)</label>
+            <div class="upload-zone" onclick="document.getElementById('foodReceipt').click()">
+              📎 Click to upload receipt
+              <input type="file" id="foodReceipt" accept="image/*" style="display:none" onchange="previewReceipt('foodReceiptPreview',this)">
+            </div>
+            <img class="receipt-preview" id="foodReceiptPreview" style="display:none">
+          </div>
+          <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="saveFood()">
+            + Add Meal Entry
+          </button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="form-group" style="flex:1">
+              <label>View Month</label>
+              <select id="foodViewMonth" onchange="renderFoodTable()">
+                <option>January</option><option>February</option><option>March</option>
+                <option>April</option><option>May</option><option>June</option>
+                <option>July</option><option>August</option><option>September</option>
+                <option>October</option><option>November</option><option>December</option>
+              </select>
+            </div>
+            <div class="btn-group" style="align-self:flex-end">
+              <button class="btn btn-success btn-sm" onclick="exportFoodPDF()">📄 PDF</button>
+              <button class="btn btn-warning btn-sm" onclick="exportFoodExcel()">📊 Excel</button>
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="stat-card" style="--stat-color:var(--cyan)">
+              <div class="stat-label">Monthly Total</div>
+              <div class="stat-value" id="foodMonthTotal">Rs. 0</div>
+              <div class="stat-icon">🍽</div>
+            </div>
+            <div class="stat-card" style="--stat-color:var(--green)">
+              <div class="stat-label">Meals Logged</div>
+              <div class="stat-value" id="foodMealCount">0</div>
+              <div class="stat-icon">📋</div>
+            </div>
+            <div class="stat-card" style="--stat-color:var(--yellow)">
+              <div class="stat-label">Avg Per Meal</div>
+              <div class="stat-value" id="foodAvgMeal">Rs. 0</div>
+              <div class="stat-icon">📊</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:24px">
+        <div class="card">
+          <div class="card-title">Daily Expenses — Bar Chart</div>
+          <div class="chart-wrap"><canvas id="foodBarChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Meal Type Distribution</div>
+          <div class="chart-wrap"><canvas id="foodPieChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:24px">
+        <div class="card-title">Food Records</div>
+        <div class="table-wrap">
+          <table id="foodTable">
+            <thead>
+              <tr><th>#</th><th>Date</th><th>Month</th><th>Meal Type</th><th>Amount</th><th>Receipt</th><th></th></tr>
+            </thead>
+            <tbody id="foodTableBody">
+              <tr><td colspan="7"><div class="empty-state"><p>No food entries yet.</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== GROCERY TAB ====== -->
+    <div class="tab-page" id="page-grocery">
+      <div class="module-header">
+        <div class="module-title">Grocery <span>Management</span></div>
+        <div class="module-sub">Track grocery purchases by item, quantity, and price</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:400px 1fr;gap:24px;align-items:start">
+        <div class="card">
+          <div class="card-title">Add Grocery Item</div>
+          <div class="form-row cols-2">
+            <div class="form-group">
+              <label>Month</label>
+              <select id="groceryMonth">
+                <option>January</option><option>February</option><option>March</option>
+                <option>April</option><option>May</option><option>June</option>
+                <option>July</option><option>August</option><option>September</option>
+                <option>October</option><option>November</option><option>December</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="groceryDate">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Item Name</label>
+              <input type="text" id="groceryItem" placeholder="e.g. Rice, Oil...">
+            </div>
+          </div>
+          <div class="form-row cols-2">
+            <div class="form-group">
+              <label>Quantity</label>
+              <input type="number" id="groceryQty" placeholder="1" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Unit Price (Rs.)</label>
+              <input type="number" id="groceryUnitPrice" placeholder="0.00" min="0" step="0.01">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Total (auto)</label>
+            <input type="text" id="groceryTotal" readonly placeholder="Auto calculated" style="background:var(--surface);color:var(--accent2)">
+          </div>
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Receipt (optional)</label>
+            <div class="upload-zone" onclick="document.getElementById('groceryReceipt').click()">
+              📎 Upload receipt
+              <input type="file" id="groceryReceipt" accept="image/*" style="display:none" onchange="previewReceipt('groceryReceiptPreview',this)">
+            </div>
+            <img class="receipt-preview" id="groceryReceiptPreview" style="display:none">
+          </div>
+          <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="saveGrocery()">
+            + Add Grocery Item
+          </button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="form-group" style="flex:1">
+              <label>View Month</label>
+              <select id="groceryViewMonth" onchange="renderGroceryTable()">
+                <option>January</option><option>February</option><option>March</option>
+                <option>April</option><option>May</option><option>June</option>
+                <option>July</option><option>August</option><option>September</option>
+                <option>October</option><option>November</option><option>December</option>
+              </select>
+            </div>
+            <div class="btn-group" style="align-self:flex-end">
+              <button class="btn btn-success btn-sm" onclick="exportGroceryPDF()">📄 PDF</button>
+              <button class="btn btn-warning btn-sm" onclick="exportGroceryExcel()">📊 Excel</button>
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="stat-card" style="--stat-color:var(--orange)">
+              <div class="stat-label">Monthly Total</div>
+              <div class="stat-value" id="grocMonthTotal">Rs. 0</div>
+              <div class="stat-icon">🛒</div>
+            </div>
+            <div class="stat-card" style="--stat-color:var(--green)">
+              <div class="stat-label">Items Bought</div>
+              <div class="stat-value" id="grocItemCount">0</div>
+              <div class="stat-icon">📦</div>
+            </div>
+            <div class="stat-card" style="--stat-color:var(--accent)">
+              <div class="stat-label">Avg Item Cost</div>
+              <div class="stat-value" id="grocAvgCost">Rs. 0</div>
+              <div class="stat-icon">💰</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:24px">
+        <div class="card-title">Monthly Spending Chart</div>
+        <div class="chart-wrap"><canvas id="groceryChart"></canvas></div>
+      </div>
+
+      <div class="card" style="margin-top:24px">
+        <div class="card-title">Grocery Records</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Date</th><th>Month</th><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Receipt</th><th></th></tr>
+            </thead>
+            <tbody id="groceryTableBody">
+              <tr><td colspan="9"><div class="empty-state"><p>No grocery entries yet.</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== OTHER TAB ====== -->
+    <div class="tab-page" id="page-other">
+      <div class="module-header">
+        <div class="module-title">Other <span>Expenses</span></div>
+        <div class="module-sub">Track miscellaneous and one-off expenses</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start">
+        <div class="card">
+          <div class="card-title">Add Expense</div>
+          <div class="form-row cols-2">
+            <div class="form-group">
+              <label>Month</label>
+              <select id="otherMonth">
+                <option>January</option><option>February</option><option>March</option>
+                <option>April</option><option>May</option><option>June</option>
+                <option>July</option><option>August</option><option>September</option>
+                <option>October</option><option>November</option><option>December</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="otherDate">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" id="otherDesc" placeholder="e.g. Electricity bill...">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Amount (Rs.)</label>
+              <input type="number" id="otherAmount" placeholder="0.00" min="0">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Receipt (optional)</label>
+            <div class="upload-zone" onclick="document.getElementById('otherReceipt').click()">
+              📎 Upload receipt
+              <input type="file" id="otherReceipt" accept="image/*" style="display:none" onchange="previewReceipt('otherReceiptPreview',this)">
+            </div>
+            <img class="receipt-preview" id="otherReceiptPreview" style="display:none">
+          </div>
+          <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="saveOther()">
+            + Add Expense
+          </button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="form-group" style="flex:1">
+              <label>View Month</label>
+              <select id="otherViewMonth" onchange="renderOtherTable()">
+                <option>January</option><option>February</option><option>March</option>
+                <option>April</option><option>May</option><option>June</option>
+                <option>July</option><option>August</option><option>September</option>
+                <option>October</option><option>November</option><option>December</option>
+              </select>
+            </div>
+            <div class="btn-group" style="align-self:flex-end">
+              <button class="btn btn-success btn-sm" onclick="exportOtherPDF()">📄 PDF</button>
+              <button class="btn btn-warning btn-sm" onclick="exportOtherExcel()">📊 Excel</button>
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="stat-card" style="--stat-color:var(--pink)">
+              <div class="stat-label">Monthly Total</div>
+              <div class="stat-value" id="otherMonthTotal">Rs. 0</div>
+              <div class="stat-icon">💸</div>
+            </div>
+            <div class="stat-card" style="--stat-color:var(--cyan)">
+              <div class="stat-label">Entries</div>
+              <div class="stat-value" id="otherEntryCount">0</div>
+              <div class="stat-icon">📝</div>
+            </div>
+            <div class="stat-card" style="--stat-color:var(--yellow)">
+              <div class="stat-label">Avg Entry</div>
+              <div class="stat-value" id="otherAvgEntry">Rs. 0</div>
+              <div class="stat-icon">📊</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:24px">
+        <div class="card-title">Expense Chart</div>
+        <div class="chart-wrap"><canvas id="otherChart"></canvas></div>
+      </div>
+
+      <div class="card" style="margin-top:24px">
+        <div class="card-title">Other Expense Records</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Date</th><th>Month</th><th>Description</th><th>Amount</th><th>Receipt</th><th></th></tr>
+            </thead>
+            <tbody id="otherTableBody">
+              <tr><td colspan="7"><div class="empty-state"><p>No other expenses yet.</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== ANNUAL TAB ====== -->
+    <div class="tab-page" id="page-annual">
+      <div class="module-header">
+        <div class="module-title">Annual <span>Performance</span></div>
+        <div class="module-sub">Year-over-year financial health overview</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+        <div class="form-group" style="width:160px">
+          <label>Year</label>
+          <input type="number" id="annualYear" value="2026" onchange="renderAnnual()">
+        </div>
+        <div class="btn-group" style="align-self:flex-end">
+          <button class="btn btn-success btn-sm" onclick="exportAnnualPDF()">📄 Export PDF</button>
+          <button class="btn btn-warning btn-sm" onclick="exportAnnualExcel()">📊 Export Excel</button>
+        </div>
+      </div>
+
+      <div class="grid-4" id="annualStats">
+        <div class="stat-card" style="--stat-color:var(--accent)">
+          <div class="stat-label">Year Total Income</div>
+          <div class="stat-value amount-neutral" id="annualTotalIncome">Rs. 0</div>
+          <div class="stat-icon">💰</div>
+        </div>
+        <div class="stat-card" style="--stat-color:var(--red)">
+          <div class="stat-label">Year Total Expense</div>
+          <div class="stat-value amount-negative" id="annualTotalExpense">Rs. 0</div>
+          <div class="stat-icon">📉</div>
+        </div>
+        <div class="stat-card" style="--stat-color:var(--green)">
+          <div class="stat-label">Year Total Savings</div>
+          <div class="stat-value amount-positive" id="annualTotalSavings">Rs. 0</div>
+          <div class="stat-icon">🏦</div>
+        </div>
+        <div class="stat-card" style="--stat-color:var(--yellow)">
+          <div class="stat-label">Savings Rate</div>
+          <div class="stat-value" id="annualSavingsRate">0%</div>
+          <div class="stat-icon">📈</div>
+        </div>
+      </div>
+
+      <div class="annual-charts">
+        <div class="card">
+          <div class="card-title">Monthly Income vs Expense — Bar</div>
+          <div class="chart-wrap"><canvas id="annualBarChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Annual Breakdown — Pie</div>
+          <div class="chart-wrap"><canvas id="annualPieChart"></canvas></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:24px">
+        <div class="card-title">Income vs Balance Trend — Line</div>
+        <div class="chart-wrap"><canvas id="annualLineChart"></canvas></div>
+      </div>
+
+      <div class="card" style="margin-top:24px">
+        <div class="card-title">Monthly Breakdown</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Month</th><th>Income</th><th>Expenses</th><th>Balance</th><th>Savings %</th></tr>
+            </thead>
+            <tbody id="annualTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== SETTINGS TAB ====== -->
+    <div class="tab-page" id="page-settings">
+      <div class="module-header">
+        <div class="module-title">Account <span>Settings</span></div>
+        <div class="module-sub">Manage your security and application preferences</div>
+      </div>
+
+      <div class="grid-2" style="align-items:start">
+        <div class="card">
+          <div class="card-title">Change Password</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" id="oldPwd" placeholder="Enter current password">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" id="newPwd" placeholder="Enter new password">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" id="confirmPwd" placeholder="Confirm new password">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
+          <div id="pwdMsg" style="margin-top:12px;font-size:13px;display:none"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Data Management</div>
+          <p style="font-size:14px;color:var(--text2);margin-bottom:20px">Manage your stored financial data.</p>
+          <div class="btn-group" style="flex-direction:column">
+            <button class="btn btn-ghost" onclick="exportAllData()">📦 Export All Data (JSON)</button>
+            <button class="btn btn-ghost" onclick="importDataClick()">📥 Import Data (JSON)</button>
+            <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importData(this)">
+            <button class="btn btn-danger" onclick="clearAllData()">🗑 Clear All Data</button>
+          </div>
+          <div class="divider"></div>
+          <div class="card-title">Google Sheets Sync</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Apps Script Web App URL</label>
+              <input type="text" id="sheetsUrl" placeholder="https://script.google.com/macros/s/..." style="font-size:12px">
+            </div>
+          </div>
+          <button class="btn btn-success btn-sm" onclick="saveSheetsUrl()">Save & Sync</button>
+        </div>
+      </div>
+    </div>
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title" id="editModalTitle">Edit Entry</div>
+    <div id="editModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="editModalSave" onclick="">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATA STORE =====
+let DB = {
+  salary: {},    // key: "Month-Year"
+  food: [],
+  grocery: [],
+  other: []
+};
+
+// ===== CHARTS =====
+let charts = {};
+
+// ===== MONTHS =====
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ===== COLORS =====
+const PALETTE = ['#7c6cff','#22d3ee','#f472b6','#34d399','#fbbf24','#fb923c','#a78bfa','#38bdf8','#4ade80','#f87171'];
+
+// ===== UTILS =====
+function fmtRs(n) { return 'Rs. ' + Number(n||0).toLocaleString('en-IN', {minimumFractionDigits:0,maximumFractionDigits:2}); }
+function pct(val, total) { return total ? ((val/total)*100).toFixed(1)+'%' : '0%'; }
+function saveDB() { localStorage.setItem('spfms_db', JSON.stringify(DB)); }
+function loadDB() {
+  const d = localStorage.getItem('spfms_db');
+  if(d) DB = JSON.parse(d);
+}
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  const icons = {success:'✓', error:'✕', info:'ℹ'};
+  const colors = {success:'var(--green)', error:'var(--red)', info:'var(--cyan)'};
+  document.getElementById('toastIcon').textContent = icons[type];
+  document.getElementById('toastIcon').style.color = colors[type];
+  document.getElementById('toastMsg').textContent = msg;
+  t.style.borderLeftColor = colors[type];
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3000);
+}
+function destroyChart(id) {
+  if(charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+function makeChart(id, config) {
+  destroyChart(id);
+  charts[id] = new Chart(document.getElementById(id), config);
+}
+
+// ===== AUTH =====
+const DEFAULT_PWD = '1234';
+function getPwd() { return localStorage.getItem('spfms_pwd') || DEFAULT_PWD; }
+function doLogin() {
+  const val = document.getElementById('loginPwd').value;
+  if(val === getPwd()) {
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('app').style.flexDirection='column';
+    loadDB();
+    renderSalaryTable();
+    initDateDefaults();
+    renderAnnual();
+  } else {
+    document.getElementById('loginError').style.display='block';
+    document.getElementById('loginPwd').style.borderColor='var(--red)';
+  }
+}
+function doLogout() {
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginPwd').value='';
+  document.getElementById('loginError').style.display='none';
+}
+document.getElementById('loginPwd').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+function changePassword() {
+  const old = document.getElementById('oldPwd').value;
+  const nw = document.getElementById('newPwd').value;
+  const cf = document.getElementById('confirmPwd').value;
+  const msg = document.getElementById('pwdMsg');
+  if(old !== getPwd()) { showPwdMsg('Incorrect current password', 'red'); return; }
+  if(!nw) { showPwdMsg('New password cannot be empty', 'red'); return; }
+  if(nw !== cf) { showPwdMsg('Passwords do not match', 'red'); return; }
+  localStorage.setItem('spfms_pwd', nw);
+  showPwdMsg('Password updated successfully!', 'green');
+  document.getElementById('oldPwd').value='';
+  document.getElementById('newPwd').value='';
+  document.getElementById('confirmPwd').value='';
+}
+function showPwdMsg(t, c) {
+  const m = document.getElementById('pwdMsg');
+  m.textContent=t; m.style.color='var(--'+c+')'; m.style.display='block';
+  setTimeout(()=>m.style.display='none', 3000);
+}
+
+// ===== NAV =====
+function switchTab(tab) {
+  document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='annual') renderAnnual();
+  if(tab==='food') renderFoodTable();
+  if(tab==='grocery') renderGroceryTable();
+  if(tab==='other') renderOtherTable();
+}
+
+// ===== THEME =====
+function toggleTheme() {
+  const html = document.documentElement;
+  const isLight = html.getAttribute('data-theme') === 'light';
+  html.setAttribute('data-theme', isLight ? 'dark' : 'light');
+  document.querySelector('.theme-toggle').textContent = isLight ? '🌙' : '☀️';
+  // Re-render all charts for new theme
+  setTimeout(() => { renderSalaryCharts(); renderFoodCharts(); renderGroceryChart(); renderOtherChart(); renderAnnual(); }, 100);
+}
+
+// ===== INIT =====
+function initDateDefaults() {
+  const today = new Date().toISOString().split('T')[0];
+  ['foodDate','groceryDate','otherDate'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = today;
+  });
+  const month = MONTHS[new Date().getMonth()];
+  ['salaryMonth','foodMonth','foodViewMonth','groceryMonth','groceryViewMonth','otherMonth','otherViewMonth'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = month;
+  });
+}
+
+// ===== SALARY MODULE =====
+document.querySelectorAll('#page-salary input').forEach(inp => {
+  inp.addEventListener('keydown', e => { if(e.key==='Enter') saveSalary(); });
+});
+
+// Auto calc grocery total
+document.getElementById('groceryQty').addEventListener('input', calcGroceryTotal);
+document.getElementById('groceryUnitPrice').addEventListener('input', calcGroceryTotal);
+function calcGroceryTotal() {
+  const q = parseFloat(document.getElementById('groceryQty').value)||0;
+  const p = parseFloat(document.getElementById('groceryUnitPrice').value)||0;
+  document.getElementById('groceryTotal').value = q && p ? fmtRs(q*p) : '';
+}
+
+function saveSalary() {
+  const month = document.getElementById('salaryMonth').value;
+  const year = document.getElementById('salaryYear').value;
+  const key = month+'-'+year;
+  const salary = parseFloat(document.getElementById('salarySalary').value)||0;
+  if(!salary) { toast('Please enter a salary amount', 'error'); return; }
+  DB.salary[key] = {
+    month, year,
+    salary: parseFloat(document.getElementById('salarySalary').value)||0,
+    food: parseFloat(document.getElementById('salaryFood').value)||0,
+    transport: parseFloat(document.getElementById('salaryTransport').value)||0,
+    grocery: parseFloat(document.getElementById('salaryGrocery').value)||0,
+    bank: parseFloat(document.getElementById('salaryBank').value)||0,
+    other: parseFloat(document.getElementById('salaryOther').value)||0,
+  };
+  saveDB();
+  renderSalaryTable();
+  renderSalarySummary(key);
+  renderSalaryCharts(key);
+  toast('Salary entry saved!');
+}
+
+function renderSalaryTable() {
+  const tbody = document.getElementById('salaryTableBody');
+  const keys = Object.keys(DB.salary);
+  if(!keys.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><p>No records yet.</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = keys.map(k => {
+    const d = DB.salary[k];
+    const exp = d.food + d.transport + d.grocery + d.bank + d.other;
+    const bal = d.salary - exp;
+    return `<tr>
+      <td><span class="month-tag">${d.month} ${d.year}</span></td>
+      <td class="amount amount-neutral">${fmtRs(d.salary)}</td>
+      <td>${fmtRs(d.food)}</td>
+      <td>${fmtRs(d.transport)}</td>
+      <td>${fmtRs(d.grocery)}</td>
+      <td>${fmtRs(d.bank)}</td>
+      <td>${fmtRs(d.other)}</td>
+      <td class="amount ${bal>=0?'amount-positive':'amount-negative'}">${fmtRs(bal)}</td>
+      <td>
+        <button class="del-btn" onclick="deleteSalary('${k}')">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+  // Update summary for current selection
+  const curKey = document.getElementById('salaryMonth').value + '-' + document.getElementById('salaryYear').value;
+  if(DB.salary[curKey]) { renderSalarySummary(curKey); renderSalaryCharts(curKey); }
+}
+
+function deleteSalary(key) {
+  if(!confirm('Delete this entry?')) return;
+  delete DB.salary[key]; saveDB(); renderSalaryTable(); toast('Entry deleted', 'info');
+}
+
+function renderSalarySummary(key) {
+  const d = DB.salary[key];
+  if(!d) return;
+  const exp = d.food + d.transport + d.grocery + d.bank + d.other;
+  const bal = d.salary - exp;
+  document.getElementById('sumSalary').textContent = fmtRs(d.salary);
+  document.getElementById('sumExpense').textContent = fmtRs(exp);
+  document.getElementById('sumBalance').textContent = fmtRs(bal);
+  const bars = [
+    {label:'Food', val:d.food, color:'var(--cyan)'},
+    {label:'Transport', val:d.transport, color:'var(--green)'},
+    {label:'Grocery', val:d.grocery, color:'var(--orange)'},
+    {label:'Bank', val:d.bank, color:'var(--accent2)'},
+    {label:'Other', val:d.other, color:'var(--pink)'},
+  ];
+  document.getElementById('salaryProgressBars').innerHTML = bars.map(b => `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="color:var(--text2)">${b.label}</span>
+        <span style="font-weight:600">${fmtRs(b.val)} <span style="color:var(--text3)">(${pct(b.val, d.salary)})</span></span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:${d.salary?Math.min((b.val/d.salary)*100,100):0}%;background:${b.color}"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSalaryCharts(key) {
+  if(!key) key = document.getElementById('salaryMonth').value + '-' + document.getElementById('salaryYear').value;
+  const d = DB.salary[key];
+  const labels = ['Food','Transport','Grocery','Bank Saving','Other'];
+  const vals = d ? [d.food,d.transport,d.grocery,d.bank,d.other] : [0,0,0,0,0];
+  const tc = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim();
+
+  makeChart('salaryBarChart', {
+    type:'bar',
+    data: { labels, datasets:[{ data:vals, backgroundColor:PALETTE, borderRadius:8, borderSkipped:false }]},
+    options: chartOpts(tc, 'Rs. ')
+  });
+  makeChart('salaryPieChart', {
+    type:'doughnut',
+    data: { labels, datasets:[{ data:vals, backgroundColor:PALETTE, borderWidth:0, hoverOffset:8 }]},
+    options: { ...doughnutOpts(tc), plugins:{ legend:{ position:'bottom', labels:{color:tc,font:{size:11},padding:12}} } }
+  });
+}
+
+// ===== FOOD MODULE =====
+function saveFood() {
+  const month = document.getElementById('foodMonth').value;
+  const date = document.getElementById('foodDate').value;
+  const type = document.getElementById('foodType').value;
+  const amount = parseFloat(document.getElementById('foodAmount').value)||0;
+  if(!amount) { toast('Enter meal amount','error'); return; }
+  const receipt = document.getElementById('foodReceiptPreview').src || '';
+  DB.food.push({ id:Date.now(), month, date, type, amount, receipt: (receipt && receipt !== window.location.href) ? receipt : '' });
+  saveDB(); renderFoodTable(); renderFoodCharts();
+  document.getElementById('foodAmount').value='';
+  document.getElementById('foodReceiptPreview').style.display='none';
+  toast('Meal entry added!');
+}
+function renderFoodTable() {
+  const viewMonth = document.getElementById('foodViewMonth').value;
+  const items = DB.food.filter(f=>f.month===viewMonth);
+  const tbody = document.getElementById('foodTableBody');
+  if(!items.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>No food entries for '+viewMonth+'.</p></div></td></tr>';
+    document.getElementById('foodMonthTotal').textContent = 'Rs. 0';
+    document.getElementById('foodMealCount').textContent = '0';
+    document.getElementById('foodAvgMeal').textContent = 'Rs. 0';
+    renderFoodCharts();
+    return;
+  }
+  const total = items.reduce((a,b)=>a+b.amount,0);
+  document.getElementById('foodMonthTotal').textContent = fmtRs(total);
+  document.getElementById('foodMealCount').textContent = items.length;
+  document.getElementById('foodAvgMeal').textContent = fmtRs(total/items.length);
+  const typeBadges = {Morning:'badge-cyan',Afternoon:'badge-yellow',Night:'badge-purple','Not Taken':'badge-red'};
+  tbody.innerHTML = items.map((f,i)=>`<tr>
+    <td>${i+1}</td>
+    <td>${f.date}</td>
+    <td><span class="month-tag">${f.month}</span></td>
+    <td><span class="badge ${typeBadges[f.type]||'badge-green'}">${f.type}</span></td>
+    <td class="amount amount-neutral">${fmtRs(f.amount)}</td>
+    <td>${f.receipt ? `<a href="${f.receipt}" target="_blank" style="color:var(--accent2);font-size:12px">View 📎</a>` : '-'}</td>
+    <td><button class="del-btn" onclick="deleteFood(${f.id})">✕</button></td>
+  </tr>`).join('');
+  renderFoodCharts();
+}
+function deleteFood(id) {
+  DB.food = DB.food.filter(f=>f.id!==id); saveDB(); renderFoodTable(); toast('Entry deleted','info');
+}
+function renderFoodCharts() {
+  const viewMonth = document.getElementById('foodViewMonth').value;
+  const items = DB.food.filter(f=>f.month===viewMonth);
+  // Bar by date
+  const dateMap = {};
+  items.forEach(f=>{ dateMap[f.date] = (dateMap[f.date]||0)+f.amount; });
+  const dates = Object.keys(dateMap).sort();
+  const tc = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim();
+  makeChart('foodBarChart',{type:'bar',data:{labels:dates,datasets:[{data:dates.map(d=>dateMap[d]),backgroundColor:'rgba(34,211,238,0.7)',borderRadius:6,borderSkipped:false}]},options:chartOpts(tc,'Rs. ')});
+  // Pie by type
+  const typeMap = {Morning:0,Afternoon:0,Night:0,'Not Taken':0};
+  items.forEach(f=>typeMap[f.type]=(typeMap[f.type]||0)+f.amount);
+  makeChart('foodPieChart',{type:'doughnut',data:{labels:Object.keys(typeMap),datasets:[{data:Object.values(typeMap),backgroundColor:['#22d3ee','#fbbf24','#7c6cff','#f87171'],borderWidth:0}]},options:doughnutOpts(tc)});
+}
+
+// ===== GROCERY MODULE =====
+function saveGrocery() {
+  const item = document.getElementById('groceryItem').value.trim();
+  const qty = parseFloat(document.getElementById('groceryQty').value)||0;
+  const unitPrice = parseFloat(document.getElementById('groceryUnitPrice').value)||0;
+  if(!item || !qty || !unitPrice) { toast('Fill all grocery fields','error'); return; }
+  const receipt = document.getElementById('groceryReceiptPreview').src || '';
+  DB.grocery.push({
+    id:Date.now(),
+    month:document.getElementById('groceryMonth').value,
+    date:document.getElementById('groceryDate').value,
+    item, qty, unitPrice, total: qty*unitPrice,
+    receipt: (receipt && receipt !== window.location.href) ? receipt : ''
+  });
+  saveDB(); renderGroceryTable(); renderGroceryChart();
+  document.getElementById('groceryItem').value='';
+  document.getElementById('groceryQty').value='';
+  document.getElementById('groceryUnitPrice').value='';
+  document.getElementById('groceryTotal').value='';
+  document.getElementById('groceryReceiptPreview').style.display='none';
+  toast('Grocery item added!');
+}
+function renderGroceryTable() {
+  const viewMonth = document.getElementById('groceryViewMonth').value;
+  const items = DB.grocery.filter(g=>g.month===viewMonth);
+  const tbody = document.getElementById('groceryTableBody');
+  if(!items.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><p>No grocery entries for '+viewMonth+'.</p></div></td></tr>';
+    document.getElementById('grocMonthTotal').textContent='Rs. 0';
+    document.getElementById('grocItemCount').textContent='0';
+    document.getElementById('grocAvgCost').textContent='Rs. 0';
+    renderGroceryChart(); return;
+  }
+  const total = items.reduce((a,b)=>a+b.total,0);
+  document.getElementById('grocMonthTotal').textContent = fmtRs(total);
+  document.getElementById('grocItemCount').textContent = items.length;
+  document.getElementById('grocAvgCost').textContent = fmtRs(total/items.length);
+  tbody.innerHTML = items.map((g,i)=>`<tr>
+    <td>${i+1}</td><td>${g.date}</td>
+    <td><span class="month-tag">${g.month}</span></td>
+    <td><strong>${g.item}</strong></td>
+    <td>${g.qty}</td>
+    <td>${fmtRs(g.unitPrice)}</td>
+    <td class="amount amount-neutral">${fmtRs(g.total)}</td>
+    <td>${g.receipt ? `<a href="${g.receipt}" target="_blank" style="color:var(--accent2);font-size:12px">View 📎</a>` : '-'}</td>
+    <td><button class="del-btn" onclick="deleteGrocery(${g.id})">✕</button></td>
+  </tr>`).join('');
+  renderGroceryChart();
+}
+function deleteGrocery(id) {
+  DB.grocery = DB.grocery.filter(g=>g.id!==id); saveDB(); renderGroceryTable(); toast('Entry deleted','info');
+}
+function renderGroceryChart() {
+  const viewMonth = document.getElementById('groceryViewMonth').value;
+  const items = DB.grocery.filter(g=>g.month===viewMonth);
+  const tc = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim();
+  makeChart('groceryChart',{type:'bar',data:{labels:items.map(g=>g.item),datasets:[{data:items.map(g=>g.total),backgroundColor:PALETTE.slice(0,items.length),borderRadius:8,borderSkipped:false,label:'Amount'}]},options:chartOpts(tc,'Rs. ')});
+}
+
+// ===== OTHER MODULE =====
+function saveOther() {
+  const desc = document.getElementById('otherDesc').value.trim();
+  const amount = parseFloat(document.getElementById('otherAmount').value)||0;
+  if(!desc||!amount) { toast('Fill description and amount','error'); return; }
+  const receipt = document.getElementById('otherReceiptPreview').src || '';
+  DB.other.push({
+    id:Date.now(),
+    month:document.getElementById('otherMonth').value,
+    date:document.getElementById('otherDate').value,
+    desc, amount,
+    receipt: (receipt && receipt !== window.location.href) ? receipt : ''
+  });
+  saveDB(); renderOtherTable(); renderOtherChart();
+  document.getElementById('otherDesc').value='';
+  document.getElementById('otherAmount').value='';
+  document.getElementById('otherReceiptPreview').style.display='none';
+  toast('Expense added!');
+}
+function renderOtherTable() {
+  const viewMonth = document.getElementById('otherViewMonth').value;
+  const items = DB.other.filter(o=>o.month===viewMonth);
+  const tbody = document.getElementById('otherTableBody');
+  if(!items.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>No expenses for '+viewMonth+'.</p></div></td></tr>';
+    document.getElementById('otherMonthTotal').textContent='Rs. 0';
+    document.getElementById('otherEntryCount').textContent='0';
+    document.getElementById('otherAvgEntry').textContent='Rs. 0';
+    renderOtherChart(); return;
+  }
+  const total = items.reduce((a,b)=>a+b.amount,0);
+  document.getElementById('otherMonthTotal').textContent = fmtRs(total);
+  document.getElementById('otherEntryCount').textContent = items.length;
+  document.getElementById('otherAvgEntry').textContent = fmtRs(total/items.length);
+  tbody.innerHTML = items.map((o,i)=>`<tr>
+    <td>${i+1}</td><td>${o.date}</td>
+    <td><span class="month-tag">${o.month}</span></td>
+    <td>${o.desc}</td>
+    <td class="amount amount-negative">${fmtRs(o.amount)}</td>
+    <td>${o.receipt ? `<a href="${o.receipt}" target="_blank" style="color:var(--accent2);font-size:12px">View 📎</a>` : '-'}</td>
+    <td><button class="del-btn" onclick="deleteOther(${o.id})">✕</button></td>
+  </tr>`).join('');
+  renderOtherChart();
+}
+function deleteOther(id) {
+  DB.other = DB.other.filter(o=>o.id!==id); saveDB(); renderOtherTable(); toast('Deleted','info');
+}
+function renderOtherChart() {
+  const viewMonth = document.getElementById('otherViewMonth').value;
+  const items = DB.other.filter(o=>o.month===viewMonth);
+  const tc = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim();
+  makeChart('otherChart',{type:'bar',data:{labels:items.map(o=>o.desc.slice(0,15)),datasets:[{data:items.map(o=>o.amount),backgroundColor:PALETTE.map(c=>c),borderRadius:8,borderSkipped:false,label:'Amount'}]},options:chartOpts(tc,'Rs. ')});
+}
+
+// ===== ANNUAL MODULE =====
+function renderAnnual() {
+  const year = document.getElementById('annualYear').value;
+  const tc = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim();
+  let totalIncome=0, totalExpense=0, totalSavings=0;
+  const incomeData=[], expenseData=[], balanceData=[];
+
+  MONTHS.forEach(m => {
+    const key = m+'-'+year;
+    const sal = DB.salary[key];
+    const foodExp = DB.food.filter(f=>f.month===m).reduce((a,b)=>a+b.amount,0);
+    const grocExp = DB.grocery.filter(g=>g.month===m).reduce((a,b)=>a+b.total,0);
+    const otherExp = DB.other.filter(o=>o.month===m).reduce((a,b)=>a+b.amount,0);
+    const salIncome = sal ? sal.salary : 0;
+    const salExp = sal ? sal.food+sal.transport+sal.grocery+sal.bank+sal.other : 0;
+    const allExp = salExp + foodExp + grocExp + otherExp;
+    const bal = salIncome - allExp;
+    totalIncome += salIncome;
+    totalExpense += allExp;
+    totalSavings += Math.max(0,bal);
+    incomeData.push(salIncome);
+    expenseData.push(allExp);
+    balanceData.push(bal);
+  });
+
+  document.getElementById('annualTotalIncome').textContent = fmtRs(totalIncome);
+  document.getElementById('annualTotalExpense').textContent = fmtRs(totalExpense);
+  document.getElementById('annualTotalSavings').textContent = fmtRs(totalSavings);
+  document.getElementById('annualSavingsRate').textContent = pct(totalSavings, totalIncome);
+
+  // Bar chart
+  makeChart('annualBarChart',{type:'bar',data:{labels:MONTHS.map(m=>m.slice(0,3)),datasets:[
+    {label:'Income',data:incomeData,backgroundColor:'rgba(124,108,255,0.7)',borderRadius:6},
+    {label:'Expenses',data:expenseData,backgroundColor:'rgba(248,113,113,0.7)',borderRadius:6},
+  ]},options:{...chartOpts(tc,'Rs. '),plugins:{legend:{labels:{color:tc,font:{size:11}}}}}});
+
+  // Pie
+  makeChart('annualPieChart',{type:'doughnut',data:{labels:['Income','Expenses','Savings'],datasets:[{data:[totalIncome,totalExpense,totalSavings],backgroundColor:['#7c6cff','#f87171','#34d399'],borderWidth:0}]},options:doughnutOpts(tc)});
+
+  // Line
+  makeChart('annualLineChart',{type:'line',data:{labels:MONTHS.map(m=>m.slice(0,3)),datasets:[
+    {label:'Income',data:incomeData,borderColor:'#7c6cff',backgroundColor:'rgba(124,108,255,0.1)',fill:true,tension:0.4,pointBackgroundColor:'#7c6cff'},
+    {label:'Balance',data:balanceData,borderColor:'#34d399',backgroundColor:'rgba(52,211,153,0.1)',fill:true,tension:0.4,pointBackgroundColor:'#34d399'},
+  ]},options:{...chartOpts(tc,'Rs. '),plugins:{legend:{labels:{color:tc,font:{size:11}}}}}});
+
+  // Table
+  const tbody = document.getElementById('annualTableBody');
+  tbody.innerHTML = MONTHS.map((m,i)=>{
+    const inc = incomeData[i], exp = expenseData[i], bal = balanceData[i];
+    if(!inc && !exp) return '';
+    return `<tr>
+      <td><span class="month-tag">${m}</span></td>
+      <td class="amount amount-neutral">${fmtRs(inc)}</td>
+      <td class="amount amount-negative">${fmtRs(exp)}</td>
+      <td class="amount ${bal>=0?'amount-positive':'amount-negative'}">${fmtRs(bal)}</td>
+      <td>${pct(Math.max(0,bal),inc)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5"><div class="empty-state"><p>No data for '+year+'.</p></div></td></tr>';
+}
+
+// ===== CHART CONFIG HELPERS =====
+function chartOpts(tc, pfx='') {
+  return {
+    responsive:true,
+    plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>pfx+ctx.raw.toLocaleString('en-IN')}} },
+    scales:{
+      x:{ticks:{color:tc,font:{size:11}},grid:{color:'rgba(255,255,255,0.04)'}},
+      y:{ticks:{color:tc,font:{size:11},callback:v=>pfx+v.toLocaleString('en-IN')},grid:{color:'rgba(255,255,255,0.04)'}}
+    }
+  };
+}
+function doughnutOpts(tc) {
+  return {
+    responsive:true,
+    plugins:{
+      legend:{position:'bottom',labels:{color:tc,font:{size:11},padding:16,usePointStyle:true}},
+      tooltip:{callbacks:{label:ctx=>' Rs. '+ctx.raw.toLocaleString('en-IN')}}
+    }
+  };
+}
+
+// ===== RECEIPT UPLOAD =====
+function previewReceipt(previewId, input) {
+  const preview = document.getElementById(previewId);
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { preview.src=e.target.result; preview.style.display='block'; };
+  reader.readAsDataURL(file);
+}
+
+// ===== EXPORT =====
+function exportSalaryPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(18); doc.text('SPFMS — Salary Report', 14, 20);
+  doc.setFontSize(11);
+  let y = 35;
+  const keys = Object.keys(DB.salary);
+  if(!keys.length) { toast('No salary data to export','error'); return; }
+  keys.forEach(k => {
+    const d = DB.salary[k];
+    const exp = d.food+d.transport+d.grocery+d.bank+d.other;
+    doc.text(`${d.month} ${d.year}`, 14, y);
+    doc.text(`Salary: Rs.${d.salary}  Food: Rs.${d.food}  Transport: Rs.${d.transport}  Grocery: Rs.${d.grocery}  Bank: Rs.${d.bank}  Other: Rs.${d.other}  Balance: Rs.${d.salary-exp}`, 14, y+6);
+    y += 16;
+    if(y > 270) { doc.addPage(); y = 20; }
+  });
+  doc.save('SPFMS_Salary_Report.pdf');
+  toast('Salary PDF exported!');
+}
+function exportSalaryExcel() {
+  const keys = Object.keys(DB.salary);
+  if(!keys.length) { toast('No salary data','error'); return; }
+  const rows = [['Month','Year','Salary','Food','Transport','Grocery','Bank Saving','Other','Balance']];
+  keys.forEach(k => {
+    const d = DB.salary[k];
+    const exp = d.food+d.transport+d.grocery+d.bank+d.other;
+    rows.push([d.month,d.year,d.salary,d.food,d.transport,d.grocery,d.bank,d.other,d.salary-exp]);
+  });
+  exportXLSX(rows, 'SPFMS_Salary');
+  toast('Salary Excel exported!');
+}
+function exportFoodPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16); doc.text('SPFMS — Food Expense Report', 14, 20);
+  doc.setFontSize(10);
+  let y = 32;
+  DB.food.forEach((f,i) => {
+    doc.text(`${i+1}. ${f.date} | ${f.month} | ${f.type} | Rs.${f.amount}`, 14, y);
+    y += 7;
+    if(y>270){doc.addPage();y=20;}
+  });
+  doc.save('SPFMS_Food_Report.pdf');
+  toast('Food PDF exported!');
+}
+function exportFoodExcel() {
+  const rows = [['#','Date','Month','Meal Type','Amount']];
+  DB.food.forEach((f,i)=>rows.push([i+1,f.date,f.month,f.type,f.amount]));
+  exportXLSX(rows,'SPFMS_Food');
+  toast('Food Excel exported!');
+}
+function exportGroceryPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16); doc.text('SPFMS — Grocery Report', 14, 20);
+  doc.setFontSize(10); let y = 32;
+  DB.grocery.forEach((g,i) => {
+    doc.text(`${i+1}. ${g.date} | ${g.month} | ${g.item} | Qty:${g.qty} | Unit:Rs.${g.unitPrice} | Total:Rs.${g.total}`, 14, y);
+    y += 7;
+    if(y>270){doc.addPage();y=20;}
+  });
+  doc.save('SPFMS_Grocery_Report.pdf');
+  toast('Grocery PDF exported!');
+}
+function exportGroceryExcel() {
+  const rows = [['#','Date','Month','Item','Qty','Unit Price','Total']];
+  DB.grocery.forEach((g,i)=>rows.push([i+1,g.date,g.month,g.item,g.qty,g.unitPrice,g.total]));
+  exportXLSX(rows,'SPFMS_Grocery');
+  toast('Grocery Excel exported!');
+}
+function exportOtherPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16); doc.text('SPFMS — Other Expenses Report', 14, 20);
+  doc.setFontSize(10); let y = 32;
+  DB.other.forEach((o,i) => {
+    doc.text(`${i+1}. ${o.date} | ${o.month} | ${o.desc} | Rs.${o.amount}`, 14, y);
+    y += 7;
+    if(y>270){doc.addPage();y=20;}
+  });
+  doc.save('SPFMS_Other_Report.pdf');
+  toast('Other Expenses PDF exported!');
+}
+function exportOtherExcel() {
+  const rows = [['#','Date','Month','Description','Amount']];
+  DB.other.forEach((o,i)=>rows.push([i+1,o.date,o.month,o.desc,o.amount]));
+  exportXLSX(rows,'SPFMS_Other');
+  toast('Other Expenses Excel exported!');
+}
+function exportAnnualPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const year = document.getElementById('annualYear').value;
+  doc.setFontSize(18); doc.text('SPFMS — Annual Report '+year, 14, 20);
+  doc.setFontSize(10); let y = 32;
+  MONTHS.forEach(m => {
+    const key = m+'-'+year;
+    const sal = DB.salary[key];
+    if(sal) {
+      const exp = sal.food+sal.transport+sal.grocery+sal.bank+sal.other;
+      doc.text(`${m}: Salary Rs.${sal.salary} | Expenses Rs.${exp} | Balance Rs.${sal.salary-exp}`, 14, y);
+      y += 7;
+      if(y>270){doc.addPage();y=20;}
+    }
+  });
+  doc.save(`SPFMS_Annual_${year}.pdf`);
+  toast('Annual PDF exported!');
+}
+function exportAnnualExcel() {
+  const year = document.getElementById('annualYear').value;
+  const rows = [['Month','Income','Expenses','Balance','Savings %']];
+  MONTHS.forEach(m => {
+    const key = m+'-'+year;
+    const sal = DB.salary[key];
+    if(sal) {
+      const exp = sal.food+sal.transport+sal.grocery+sal.bank+sal.other;
+      rows.push([m, sal.salary, exp, sal.salary-exp, pct(Math.max(0,sal.salary-exp),sal.salary)]);
+    }
+  });
+  exportXLSX(rows,'SPFMS_Annual_'+year);
+  toast('Annual Excel exported!');
+}
+
+function exportXLSX(rows, filename) {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, 'Data');
+  XLSX.writeFile(wb, filename+'.xlsx');
+}
+
+// ===== DATA MANAGEMENT =====
+function exportAllData() {
+  const blob = new Blob([JSON.stringify(DB, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='SPFMS_Backup.json'; a.click();
+  toast('All data exported!');
+}
+function importDataClick() { document.getElementById('importFileInput').click(); }
+function importData(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      DB = JSON.parse(e.target.result);
+      saveDB();
+      renderSalaryTable(); renderFoodTable(); renderGroceryTable(); renderOtherTable(); renderAnnual();
+      toast('Data imported successfully!');
+    } catch { toast('Invalid JSON file','error'); }
+  };
+  reader.readAsText(file);
+}
+function clearAllData() {
+  if(!confirm('Are you sure? This will delete ALL your data permanently.')) return;
+  DB = { salary:{}, food:[], grocery:[], other:[] };
+  saveDB();
+  renderSalaryTable(); renderFoodTable(); renderGroceryTable(); renderOtherTable(); renderAnnual();
+  toast('All data cleared','info');
+}
+
+// ===== SETTINGS =====
+function saveSheetsUrl() {
+  const url = document.getElementById('sheetsUrl').value.trim();
+  if(!url) { toast('Enter a Google Apps Script URL','error'); return; }
+  localStorage.setItem('spfms_sheets_url', url);
+  toast('Sheets URL saved! Syncing data...');
+  fetch(url, { method:'POST', body: JSON.stringify(DB), headers:{'Content-Type':'application/json'} })
+    .then(r => toast('Data synced to Google Sheets!'))
+    .catch(() => toast('Sync failed. Check the URL.','error'));
+}
+
+// ===== MODAL =====
+function closeModal() { document.getElementById('editModal').classList.remove('open'); }
+document.getElementById('editModal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
+
+// ===== INIT =====
+initDateDefaults();
+renderSalaryCharts();
+</script>
+</body>
+</html>
