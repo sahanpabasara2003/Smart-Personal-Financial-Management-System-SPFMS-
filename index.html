@@ -567,7 +567,7 @@ tbody tr:last-child td { border-bottom:none; }
           <div class="form-row cols-2">
             <div class="form-group">
               <label>Month</label>
-              <select id="salaryMonth">
+              <select id="salaryMonth" onchange="onSalaryMonthChange()">
                 <option>January</option><option>February</option><option>March</option>
                 <option>April</option><option>May</option><option>June</option>
                 <option>July</option><option>August</option><option>September</option>
@@ -576,7 +576,7 @@ tbody tr:last-child td { border-bottom:none; }
             </div>
             <div class="form-group">
               <label>Year</label>
-              <input type="number" id="salaryYear" value="2026" min="2020" max="2099">
+              <input type="number" id="salaryYear" value="2026" min="2020" max="2099" onchange="onSalaryMonthChange()">
             </div>
           </div>
           <div class="form-row">
@@ -686,7 +686,7 @@ tbody tr:last-child td { border-bottom:none; }
           <div class="form-row cols-2">
             <div class="form-group">
               <label>Month</label>
-              <select id="foodMonth">
+              <select id="foodMonth" onchange="document.getElementById('foodViewMonth').value=this.value; renderFoodTable();">
                 <option>January</option><option>February</option><option>March</option>
                 <option>April</option><option>May</option><option>June</option>
                 <option>July</option><option>August</option><option>September</option>
@@ -801,7 +801,7 @@ tbody tr:last-child td { border-bottom:none; }
           <div class="form-row cols-2">
             <div class="form-group">
               <label>Month</label>
-              <select id="groceryMonth">
+              <select id="groceryMonth" onchange="document.getElementById('groceryViewMonth').value=this.value; renderGroceryTable();">
                 <option>January</option><option>February</option><option>March</option>
                 <option>April</option><option>May</option><option>June</option>
                 <option>July</option><option>August</option><option>September</option>
@@ -915,7 +915,7 @@ tbody tr:last-child td { border-bottom:none; }
           <div class="form-row cols-2">
             <div class="form-group">
               <label>Month</label>
-              <select id="otherMonth">
+              <select id="otherMonth" onchange="document.getElementById('otherViewMonth').value=this.value; renderOtherTable();">
                 <option>January</option><option>February</option><option>March</option>
                 <option>April</option><option>May</option><option>June</option>
                 <option>July</option><option>August</option><option>September</option>
@@ -1289,6 +1289,39 @@ function initDateDefaults() {
 document.querySelectorAll('#page-salary input').forEach(inp => {
   inp.addEventListener('keydown', e => { if(e.key==='Enter') saveSalary(); });
 });
+
+// Month/Year change — load existing data into form + refresh charts
+function onSalaryMonthChange() {
+  const month = document.getElementById('salaryMonth').value;
+  const year  = document.getElementById('salaryYear').value;
+  const key   = month + '-' + year;
+  const d     = DB.salary[key];
+
+  if (d) {
+    // Existing data ගෙ form fields fill කරනවා
+    document.getElementById('salarySalary').value   = d.salary   || '';
+    document.getElementById('salaryFood').value      = d.food     || '';
+    document.getElementById('salaryTransport').value = d.transport|| '';
+    document.getElementById('salaryGrocery').value   = d.grocery  || '';
+    document.getElementById('salaryBank').value      = d.bank     || '';
+    document.getElementById('salaryOther').value     = d.other    || '';
+    renderSalarySummary(key);
+    renderSalaryCharts(key);
+  } else {
+    // Data නැත්නම් form clear + summary reset
+    document.getElementById('salarySalary').value   = '';
+    document.getElementById('salaryFood').value      = '';
+    document.getElementById('salaryTransport').value = '';
+    document.getElementById('salaryGrocery').value   = '';
+    document.getElementById('salaryBank').value      = '';
+    document.getElementById('salaryOther').value     = '';
+    document.getElementById('sumSalary').textContent  = 'Rs. 0';
+    document.getElementById('sumExpense').textContent = 'Rs. 0';
+    document.getElementById('sumBalance').textContent = 'Rs. 0';
+    document.getElementById('salaryProgressBars').innerHTML = '';
+    renderSalaryCharts(key); // empty charts
+  }
+}
 
 // Auto calc grocery total
 document.getElementById('groceryQty').addEventListener('input', calcGroceryTotal);
@@ -1914,7 +1947,8 @@ document.getElementById('editModal').addEventListener('click', e=>{ if(e.target=
 
 // ===== INIT =====
 initDateDefaults();
-renderSalaryCharts();
+onSalaryMonthChange();   // current month data load + charts render
+renderSalaryTable();
 loadSheetsUrl();
 </script>
 </body>
