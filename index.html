@@ -1304,36 +1304,40 @@ tbody td.editable:hover{cursor:pointer;color:var(--gold);}
 
       <!-- Google Sheets Tab -->
       <div class="settings-tab-content" id="stab-googlesheets">
+        <!-- Pre-configured status -->
         <div class="gs-config">
-          <h4>☁️ Google Sheets Integration</h4>
-          <p>Connect your personal manager to Google Sheets for cloud backup. You need to create a Google Apps Script Web App to receive data.</p>
+          <h4>☁️ Google Sheets — Pre-Configured ✅</h4>
+          <p>Google Sheets is already connected and active. Every Save Cloud button automatically uploads your data. No setup needed.</p>
         </div>
-        <div class="config-instructions">
-          <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">📋 Setup Instructions:</p>
-          <ol>
-            <li>Go to <code>script.google.com</code> and create a new project</li>
-            <li>Paste the Apps Script code (click "View Script Code" below)</li>
-            <li>Click <code>Deploy → New Deployment → Web App</code></li>
-            <li>Set <code>Execute as: Me</code>, <code>Who has access: Anyone</code></li>
-            <li>Click Deploy and copy the Web App URL</li>
-            <li>Paste the URL below and click Save</li>
-          </ol>
+        <!-- Live status card -->
+        <div class="form-card" style="margin-bottom:16px">
+          <h3>🔗 Connection Status</h3>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+            <span class="sync-status-dot connected" style="width:12px;height:12px"></span>
+            <span style="font-size:14px;color:var(--green);font-weight:600">Connected to Google Sheets</span>
+            <span id="gsLastSyncDisplay" style="font-size:12px;color:var(--text3);margin-left:auto"></span>
+          </div>
+          <div style="padding:12px 16px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:var(--r);font-size:12px;color:var(--text2);line-height:2;word-break:break-all">
+            <strong style="color:var(--green)">Active Script URL:</strong><br>
+            <span id="activeGASUrl" style="color:var(--text2);font-family:monospace;font-size:11px"></span>
+          </div>
+          <div class="btn-actions" style="margin-top:16px">
+            <button class="btn btn-green" onclick="syncAllFromSheets(false)">🔄 Sync All Data Now</button>
+            <button class="btn btn-outline btn-sm" onclick="testGSConnection()">🔗 Test Connection</button>
+            <button class="btn btn-outline btn-sm" onclick="showAppsScript()">📋 View Apps Script Code</button>
+          </div>
+          <div id="gsStatus" style="margin-top:12px;font-size:13px;"></div>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="showAppsScript()" style="margin-bottom:16px">📋 View Apps Script Code</button>
+        <!-- How it works -->
         <div class="form-card">
-          <h3>⚙️ Connection Settings</h3>
-          <div class="form-grid">
-            <div class="form-group full">
-              <label>Google Apps Script Web App URL</label>
-              <input type="url" id="gsWebAppUrl" placeholder="https://script.google.com/macros/s/...">
-            </div>
-          </div>
-          <div class="btn-actions">
-            <button class="btn btn-gold" onclick="saveGSConfig()">💾 Save Configuration</button>
-            <button class="btn btn-green btn-sm" onclick="testGSConnection()">🔗 Test Connection</button>
+          <h3>💡 How It Works</h3>
+          <div style="font-size:13px;color:var(--text2);line-height:2.2">
+            <div>📤 <strong style="color:var(--text)">Save Cloud button</strong> → Data uploads to Google Sheets instantly</div>
+            <div>📥 <strong style="color:var(--text)">Login from any device</strong> → All data downloads automatically</div>
+            <div>🔄 <strong style="color:var(--text)">Open any module</strong> → Latest data syncs silently</div>
+            <div>☁️ <strong style="color:var(--text)">Sync All Now button</strong> → Force refresh everything from cloud</div>
           </div>
         </div>
-        <div id="gsStatus" style="margin-top:12px;font-size:13px;"></div>
       </div>
     </div>
   </div><!-- /main-content -->
@@ -1395,7 +1399,9 @@ function getObj(key, def={}) {
   try { return JSON.parse(localStorage.getItem('pms_'+key)) || def; }
   catch(e) { return def; }
 }
-function getGSUrl() { return localStorage.getItem('pms_gs_url') || ''; }
+// ── Hardcoded Google Apps Script URL ──
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzaIR3cIK9KhR7p0AIPwCTaWM7QZ9-6LGtaunWCLkGkO2TkMkJUzci_b2SGw2pRfYJk/exec';
+function getGSUrl() { return GAS_URL; }
 
 // ── TOAST ───────────────────────────────────────
 function toast(msg, type='success', dur=3000) {
@@ -1457,13 +1463,9 @@ window.toggleLoginEye = function() {
 function updateSyncDot() {
   const dot = document.getElementById('syncStatusDot');
   if(!dot) return;
-  if(getGSUrl()) {
-    dot.className = 'sync-status-dot connected';
-    dot.title = 'Google Sheets: Connected';
-  } else {
-    dot.className = 'sync-status-dot disconnected';
-    dot.title = 'Google Sheets: Not configured';
-  }
+  // URL is hardcoded — always connected
+  dot.className = 'sync-status-dot connected';
+  dot.title = 'Google Sheets: Connected';
 }
 
 function showSyncBar(msg) {
@@ -1487,68 +1489,79 @@ function hideSyncBar() {
   if(t) t.textContent = 'Last sync: '+new Date().toLocaleTimeString();
 }
 
-// WRITE — save data to Google Sheets
+// WRITE — save data to Google Sheets (always active)
 async function sendToSheets(module, data) {
-  const url = getGSUrl();
-  if(!url) {
-    toast('Google Sheets not configured. Go to Settings → Google Sheets', 'info');
-    return false;
-  }
   try {
-    await fetch(url, {
+    showSyncBar('Saving to Cloud...');
+    // Use no-cors for POST (GAS doesn't need preflight with text/plain trick)
+    await fetch(GAS_URL, {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: {'Content-Type': 'text/plain'}, // avoid preflight CORS issue
       body: JSON.stringify({module, data}),
       mode: 'no-cors'
     });
+    hideSyncBar();
     return true;
   } catch(e) {
+    hideSyncBar();
     toast('Cloud save failed: '+e.message, 'error');
     return false;
   }
 }
 
-// READ — fetch data from Google Sheets and save to localStorage
+// JSONP — only reliable way to READ cross-origin from GAS without OAuth
+function fetchJSONP(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'pms_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script  = document.createElement('script');
+    const timer   = setTimeout(() => {
+      delete window[cbName]; script.remove();
+      reject(new Error('Timeout'));
+    }, 12000);
+    window[cbName] = function(data) {
+      clearTimeout(timer); delete window[cbName]; script.remove();
+      resolve(data);
+    };
+    script.src   = url + (url.includes('?') ? '&' : '?') + 'callback=' + cbName;
+    script.onerror = () => { clearTimeout(timer); delete window[cbName]; script.remove(); reject(new Error('Network error')); };
+    document.head.appendChild(script);
+  });
+}
+
+// READ one module from Google Sheets
 async function syncFromSheets(module, silent) {
-  const url = getGSUrl();
-  if(!url || isSyncing) return false;
+  if(isSyncing) return false;
   isSyncing = true;
-  if(!silent) showSyncBar('Syncing '+module+' from Cloud...');
+  if(!silent) showSyncBar('Syncing ' + module + ' from Cloud...');
   try {
-    const res  = await fetch(url+'?action=read&module='+module, {method:'GET'});
-    const json = await res.json();
-    if(json && json.data && json.data.length > 0) {
-      convertAndSave(module, json.data);
-      if(!silent) toast(module+' synced ✓');
+    const data = await fetchJSONP(GAS_URL + '?action=read&module=' + encodeURIComponent(module));
+    if(data && data.data && data.data.length > 0) {
+      convertAndSave(module, data.data);
+      if(!silent) toast(module + ' synced ✓');
     }
-    hideSyncBar();
-    isSyncing = false;
-    return true;
+    hideSyncBar(); isSyncing = false; return true;
   } catch(e) {
-    hideSyncBar();
-    isSyncing = false;
-    if(!silent) toast('Sync failed: '+e.message, 'error');
+    hideSyncBar(); isSyncing = false;
+    if(!silent) toast('Sync failed — check internet', 'error');
     return false;
   }
 }
 
-// READ ALL modules at login
+// READ ALL modules from Google Sheets (called on login)
 async function syncAllFromSheets(silent) {
-  const url = getGSUrl();
-  if(!url) return;
   showSyncBar('Syncing all data from Cloud...');
   try {
-    const res  = await fetch(url+'?action=readAll', {method:'GET'});
-    const json = await res.json();
+    const json = await fetchJSONP(GAS_URL + '?action=readAll');
     if(json && json.data) {
-      const mods = ['Financial','SocialMedia','Diary','Notepad','Food','Grocery','Other','Birthday','SMHandling'];
-      mods.forEach(m=>{ if(json.data[m] && json.data[m].length) convertAndSave(m, json.data[m]); });
+      ['Financial','SocialMedia','Diary','Notepad','Food','Grocery','Other','Birthday','SMHandling'].forEach(m => {
+        if(json.data[m] && json.data[m].length) convertAndSave(m, json.data[m]);
+      });
       if(!silent) toast('All data synced ✓');
     }
     hideSyncBar();
   } catch(e) {
     hideSyncBar();
-    if(!silent) toast('Full sync failed: '+e.message, 'error');
+    if(!silent) toast('Sync failed — check internet connection', 'error');
   }
 }
 
@@ -1662,8 +1675,7 @@ function convertAndSave(module, rows) {
 // Manual sync button
 window.syncCurrentModule = async function() {
   const mod = MODULE_MAP[currentView];
-  if(!mod){ toast('No cloud sync for this page','info'); return; }
-  if(!getGSUrl()){ toast('Configure Google Sheets in Settings first','info'); return; }
+  if(!mod){ toast('No cloud sync needed for this page','info'); return; }
   const ok = await syncFromSheets(mod, false);
   if(ok) rerenderCurrentView();
 };
@@ -1798,7 +1810,7 @@ function showView(name, silent) {
 
   // Then silently sync from cloud and re-render
   const mod = MODULE_MAP[name];
-  if(mod && getGSUrl() && !isSyncing) {
+  if(mod && !isSyncing) {
     syncFromSheets(mod, true).then(ok=>{ if(ok) rerenderCurrentView(); });
   }
 }
@@ -2706,40 +2718,41 @@ window.exportAnnualExcel = function() {
 window.renderAnnualCharts = renderAnnualCharts;
 window.renderExpenseSummary = renderExpenseSummary;
 
-// ── GOOGLE SHEETS CONFIG ─────────────────────────
+// ── GOOGLE SHEETS CONFIG (pre-configured) ─────────────────────────
 function loadGSConfig() {
-  const url=localStorage.getItem('pms_gs_url')||'';
-  const el=document.getElementById('gsWebAppUrl');
-  if(el) el.value=url;
   updateSyncDot();
-  const st=document.getElementById('gsStatus');
-  if(st) st.innerHTML=url?'<span style="color:var(--green)">✅ Google Sheets configured — <a href="#" onclick="syncAllFromSheets(false)" style="color:var(--blue)">Sync All Now</a></span>':'<span style="color:var(--text2)">⚠️ Not configured yet</span>';
+  const urlEl = document.getElementById('activeGASUrl');
+  if(urlEl) urlEl.textContent = GAS_URL;
+  const st = document.getElementById('gsStatus');
+  if(st) st.innerHTML = '<span style="color:var(--green)">✅ Google Sheets is active and ready</span>';
 }
-window.saveGSConfig = function() {
-  const url=(document.getElementById('gsWebAppUrl').value||'').trim();
-  if(!url){ toast('Please enter a Web App URL','error'); return; }
-  localStorage.setItem('pms_gs_url',url);
-  updateSyncDot();
-  document.getElementById('gsStatus').innerHTML='<span style="color:var(--green)">✅ Saved! — <a href="#" onclick="syncAllFromSheets(false)" style="color:var(--blue)">Sync All Now</a></span>';
-  toast('Google Sheets configured!');
-};
+
+// saveGSConfig kept for compatibility but not needed
+window.saveGSConfig = function() { toast('URL is pre-configured — no action needed!','info'); };
+
 window.testGSConnection = async function() {
-  if(!getGSUrl()){ toast('Please save the URL first','error'); return; }
-  toast('Testing connection...','info');
-  const ok=await sendToSheets('Test',{message:'Connection test',time:new Date().toISOString()});
-  if(ok) toast('Write test sent! Check your Google Sheet.');
-  try {
-    const res=await fetch(getGSUrl()+'?action=read&module=Test',{method:'GET'});
-    await res.json();
-    toast('Read + Write both working ✅');
-  } catch(e) {
-    toast('Write OK but Read failed — re-deploy Apps Script','error',6000);
+  toast('Testing write connection...','info');
+  const ok = await sendToSheets('Test',{message:'Connection test',time:new Date().toISOString()});
+  if(ok) {
+    toast('✅ Write test sent successfully!');
+    // Test read via JSONP
+    try {
+      const data = await fetchJSONP(GAS_URL + '?action=read&module=Test');
+      toast('✅ Read + Write both working perfectly!');
+    } catch(e) {
+      toast('Write ✓ but Read failed — check Apps Script doGet function','error',6000);
+    }
   }
 };
 window.syncAllFromSheets = syncAllFromSheets;
 
 window.showAppsScript = function() {
   const code = [
+    '// ══════════════════════════════════════════════',
+    '// Personal Management System — Google Apps Script',
+    '// DELETE old code, paste this, deploy as NEW VERSION',
+    '// ══════════════════════════════════════════════',
+    '',
     'function doPost(e) {',
     '  try {',
     '    const ss = SpreadsheetApp.getActiveSpreadsheet();',
@@ -2751,8 +2764,8 @@ window.showAppsScript = function() {
     '    if (sheet.getLastRow() === 0) {',
     '      const headers = ["Timestamp", ...Object.keys(rowData)];',
     '      sheet.appendRow(headers);',
-    '      sheet.getRange(1,1,1,headers.length).setFontWeight("bold")',
-    '           .setBackground("#1a1a2e").setFontColor("#f0b429");',
+    '      sheet.getRange(1,1,1,headers.length)',
+    '        .setFontWeight("bold").setBackground("#1a1a2e").setFontColor("#f0b429");',
     '    }',
     '    const headers = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];',
     '    if (module === "Financial" && rowData["Month"]) {',
@@ -2760,8 +2773,9 @@ window.showAppsScript = function() {
     '      const allData = sheet.getDataRange().getValues();',
     '      let updated = false;',
     '      for (let i = 1; i < allData.length; i++) {',
-    '        if (allData[i][monthCol] === rowData["Month"]) {',
-    '          const newRow = headers.map(h => h === "Timestamp" ? new Date().toLocaleString() : (rowData[h] !== undefined ? rowData[h] : allData[i][headers.indexOf(h)]));',
+    '        if (String(allData[i][monthCol]) === String(rowData["Month"])) {',
+    '          const newRow = headers.map(h => h === "Timestamp" ? new Date().toLocaleString()',
+    '            : (rowData[h] !== undefined ? rowData[h] : allData[i][headers.indexOf(h)]));',
     '          sheet.getRange(i+1,1,1,newRow.length).setValues([newRow]);',
     '          updated = true; break;',
     '        }',
@@ -2770,23 +2784,30 @@ window.showAppsScript = function() {
     '    } else {',
     '      sheet.appendRow([new Date().toLocaleString(), ...Object.values(rowData)]);',
     '    }',
-    '    return jsonResponse({success: true});',
-    '  } catch(err) { return jsonResponse({error: err.message}); }',
+    '    return jsonOut({success: true}, null);',
+    '  } catch(err) { return jsonOut({error: err.message}, null); }',
     '}',
     '',
+    '// doGet — supports JSONP (callback param) for cross-origin read',
     'function doGet(e) {',
     '  try {',
-    '    const action = (e.parameter && e.parameter.action) || "read";',
-    '    const module = e.parameter && e.parameter.module;',
-    '    if (action === "read" && module) return jsonResponse({data: readSheet(module), module});',
-    '    if (action === "readAll") {',
-    '      const modules = ["Financial","SocialMedia","Diary","Notepad","Food","Grocery","Other","Birthday","SMHandling"];',
-    '      const result = {};',
-    '      modules.forEach(m => { result[m] = readSheet(m); });',
-    '      return jsonResponse({data: result});',
+    '    const p = e.parameter || {};',
+    '    const action   = p.action   || "read";',
+    '    const module   = p.module;',
+    '    const callback = p.callback; // JSONP callback name',
+    '    let result;',
+    '    if (action === "read" && module) {',
+    '      result = {data: readSheet(module), module: module};',
+    '    } else if (action === "readAll") {',
+    '      const mods = ["Financial","SocialMedia","Diary","Notepad","Food","Grocery","Other","Birthday","SMHandling"];',
+    '      const out = {};',
+    '      mods.forEach(m => { out[m] = readSheet(m); });',
+    '      result = {data: out};',
+    '    } else {',
+    '      result = {error: "Unknown action"};',
     '    }',
-    '    return jsonResponse({error: "Unknown action"});',
-    '  } catch(err) { return jsonResponse({error: err.message}); }',
+    '    return jsonOut(result, callback);',
+    '  } catch(err) { return jsonOut({error: err.message}, (e.parameter||{}).callback); }',
     '}',
     '',
     'function readSheet(moduleName) {',
@@ -2797,27 +2818,30 @@ window.showAppsScript = function() {
     '  const headers = rows[0];',
     '  return rows.slice(1).map(row => {',
     '    const obj = {};',
-    '    headers.forEach((h,i) => { obj[h] = row[i] !== undefined ? row[i].toString() : ""; });',
+    '    headers.forEach((h, i) => { obj[h] = row[i] != null ? row[i].toString() : ""; });',
     '    return obj;',
     '  });',
     '}',
     '',
-    'function jsonResponse(obj) {',
-    '  return ContentService.createTextOutput(JSON.stringify(obj))',
-    '    .setMimeType(ContentService.MimeType.JSON);',
+    '// jsonOut — returns plain JSON or JSONP depending on callback param',
+    'function jsonOut(obj, callback) {',
+    '  const json = JSON.stringify(obj);',
+    '  const out  = callback ? callback + "(" + json + ")" : json;',
+    '  const mime = callback ? ContentService.MimeType.JAVASCRIPT : ContentService.MimeType.JSON;',
+    '  return ContentService.createTextOutput(out).setMimeType(mime);',
     '}'
   ].join('\n');
 
   showModal(
-    'Google Apps Script Code',
-    'Copy ALL code below. DELETE old code first. Then re-deploy as "New version".',
-    '<textarea id="appsScriptCode" style="width:100%;height:300px;background:rgba(0,0,0,.5);border:1px solid #2a2a50;border-radius:8px;color:#a0ffa0;padding:14px;font-family:monospace;font-size:11px;resize:vertical;line-height:1.5">'+code+'</textarea>'+
-    '<div style="margin-top:12px;padding:12px;background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.2);border-radius:8px;font-size:12px;color:var(--text2);line-height:1.8">'+
-    '<strong style="color:var(--gold)">Steps after pasting:</strong><br>'+
-    '1. Deploy → Manage Deployments → Edit (pencil icon)<br>'+
-    '2. Version: "New version" → Deploy<br>'+
-    '3. Same URL — no need to update website settings</div>',
-    [{label:'Copy Code',cls:'btn-gold',fn:()=>{ const ta=document.getElementById('appsScriptCode'); ta.select(); document.execCommand('copy'); toast('Code copied!'); }}]
+    '📋 Apps Script Code — UPDATED',
+    'DELETE all old code first, then paste this. Re-deploy as New Version.',
+    '<textarea id="appsScriptCode" style="width:100%;height:320px;background:rgba(0,0,0,.5);border:1px solid #2a2a50;border-radius:8px;color:#a0ffa0;padding:14px;font-family:monospace;font-size:11px;resize:vertical;line-height:1.5">'+code+'</textarea>'+
+    '<div style="margin-top:12px;padding:14px;background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.25);border-radius:8px;font-size:12px;color:var(--text2);line-height:2">'+
+    '<strong style="color:var(--gold)">⚠️ Important — 3 steps:</strong><br>'+
+    '1. Open Apps Script → Select all (Ctrl+A) → Delete → Paste this code → Save (Ctrl+S)<br>'+
+    '2. Click <strong>Deploy → Manage Deployments</strong> → pencil (edit) icon<br>'+
+    '3. Version: <strong>"New version"</strong> → click <strong>Deploy</strong> ✓</div>',
+    [{label:'📋 Copy Code', cls:'btn-gold', fn:()=>{ const ta=document.getElementById('appsScriptCode'); ta.select(); document.execCommand('copy'); toast('Code copied! Paste in Apps Script'); }}]
   );
 };
 
@@ -2825,12 +2849,7 @@ window.showAppsScript = function() {
 // STARTUP
 // ══════════════════════════════════════════════════════
 initPassword();
-updateSyncDot();
-
-// Load GS URL into settings field if it exists
-const savedUrl = localStorage.getItem('pms_gs_url');
-const gsField = document.getElementById('gsWebAppUrl');
-if(savedUrl && gsField) gsField.value = savedUrl;
+updateSyncDot(); // Always green — URL is hardcoded
 
 }); // END DOMContentLoaded
 
